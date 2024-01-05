@@ -76,9 +76,6 @@ class ExchangeManager:
                     symbol = market['symbol']
                     self.fetch_order_books(symbol)
 
-            # Fetch Binance option symbols order books
-            if self.exchange_name != 'binance':
-                self.fetch_binance_option_symbols()
         except Exception as e:
             logger.error(f"An unexpected error occurred while processing markets for exchange '{self.exchange_name}': {e}")
 
