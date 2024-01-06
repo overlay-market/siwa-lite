@@ -95,8 +95,8 @@ class UnisatAPI:
     
 def main():
     unisat_api = UnisatAPI()
-    response = unisat_api.get_blockchain_info()
-    print(response.json())
+    response = unisat_api.get_brc20_ticker_history("EFIL", "45a76470f80982d769b1974181cd4f7261084ac8db3dcb1cd4547f9fe91590cf", "inscribe-deploy", 0, 100)
+    print(response.json()["data"].keys())
 
 if __name__ == "__main__":
     main()
