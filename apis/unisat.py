@@ -2,6 +2,8 @@
 import os
 from dotenv import load_dotenv
 import requests
+import json
+
 # import json
 # from pathlib import Path
 
@@ -41,8 +43,8 @@ class UnisatAPI:
     def get_inscription_utxo(self, address):
         return self._make_request(f'address/{address}/inscription-utxo-data')
 
-    def get_inscription_info(self, inscriptionid):
-        return self._make_request(f'inscription/info/{inscriptionid}')
+    def get_inscription_info(self, inscriptionId):
+        return self._make_request(f'inscription/info/{inscriptionId}')
 
     def get_brc20_list(self, start=0, limit=100):
         return self._make_request(f'brc20/list', {'start': start, 'limit': limit})
@@ -60,17 +62,17 @@ class UnisatAPI:
     def get_brc20_holders(self, ticker):
         return self._make_request(f'brc20/{ticker}/holders')
 
-    def get_brc20_ticker_history(self, ticker, txid, type, start=0, limit=100):
+    def get_brc20_ticker_history(self, ticker, height, type, start=0, limit=100):
         '''
             type: inscribe-deploy, inscribe-mint, inscribe-transfer, transfer, send, receive
         '''
-        return self._make_request(f'brc20/{ticker}/tx/{txid}', {'type': type, 'start': start, 'limit': limit})
+        return self._make_request(f'brc20/{ticker}/history', {'type': type, 'start': start, 'height': height, 'limit': limit})
 
     def get_history_by_height(self, height, start=0, limit=100):
         return self._make_request(f'brc20/history-by-height/{height}', {'start': start, 'limit': limit})
 
-    def get_brc20_tx_history(self, ticker, txid, start=0, limit=100):
-        return self._make_request(f'brc20/{ticker}/tx/{txid}/history', {'start': start, 'limit': limit})
+    def get_brc20_tx_history(self, ticker, txid, type, start=0, limit=100):
+        return self._make_request(f'brc20/{ticker}/tx/{txid}/history', {'type': type, 'start': start, 'limit': limit})
 
     def get_address_brc20_summary(self, address, start=0, limit=100):
         return self._make_request(f'address/{address}/brc20/summary', {'start': start, 'limit': limit})
@@ -95,8 +97,14 @@ class UnisatAPI:
     
 def main():
     unisat_api = UnisatAPI()
-    response = unisat_api.get_brc20_ticker_history("EFIL", "45a76470f80982d769b1974181cd4f7261084ac8db3dcb1cd4547f9fe91590cf", "inscribe-deploy", 0, 100)
-    print(response.json()["data"].keys())
+    response = unisat_api.get_inscription_info("572aba8c2beb6abfa2d066d9c4a673298e9a99ba0394c40ac22d48bf065d380ei0")
+    print(response.json()["data"])
+    parent_directory = os.path.dirname(os.path.abspath(__file__))
+    json_directory = os.path.join(parent_directory, 'json')
+    os.makedirs(json_directory, exist_ok=True)
+    json_file_path = os.path.join(json_directory, 'get_inscription_info.json')
+    with open(json_file_path, 'w') as file:
+        json.dump(response.json()["data"], file, indent=4)
 
 if __name__ == "__main__":
     main()

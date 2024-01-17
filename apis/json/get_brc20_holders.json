@@ -1,0 +1,87 @@
+{
+    "height": 826085,
+    "total": 4606,
+    "start": 0,
+    "detail": [
+        {
+            "address": "16G1xYBbiNG78LSuZdMqp6tux5xvVp9Wxh",
+            "overallBalance": "2781210",
+            "transferableBalance": "164648",
+            "availableBalance": "2616562",
+            "availableBalanceSafe": "2616562",
+            "availableBalanceUnSafe": "0"
+        },
+        {
+            "address": "bc1p2pp0r583q553zn54hu39xhwdhptlumd30lt0w46zy2g7ed68ch6qyzlp2p",
+            "overallBalance": "938525",
+            "transferableBalance": "0",
+            "availableBalance": "938525",
+            "availableBalanceSafe": "938525",
+            "availableBalanceUnSafe": "0"
+        },
+        {
+            "address": "bc1qu5vmpl6drsda2vazpl5z5wg53she2p479msv2m",
+            "overallBalance": "812363",
+            "transferableBalance": "804000",
+            "availableBalance": "8363",
+            "availableBalanceSafe": "8363",
+            "availableBalanceUnSafe": "0"
+        },
+        {
+            "address": "14LEqnshy6igp1aqkTBqdU9TbRrqF2UWYj",
+            "overallBalance": "729280",
+            "transferableBalance": "0",
+            "availableBalance": "729280",
+            "availableBalanceSafe": "729280",
+            "availableBalanceUnSafe": "0"
+        },
+        {
+            "address": "bc1pxl55h9yhj6v3uuwx7njp3gyqdd8fv0erya8qfj5dnuuy92jdzmmsjjjl6w",
+            "overallBalance": "655286.39096294",
+            "transferableBalance": "0",
+            "availableBalance": "655286.39096294",
+            "availableBalanceSafe": "655286.39096294",
+            "availableBalanceUnSafe": "0"
+        },
+        {
+            "address": "bc1p9tr85rcavpq22v92j5x3c0k74jpqnm2a00xjm8creysh2204nz3scw3zd0",
+            "overallBalance": "628980",
+            "transferableBalance": "20500",
+            "availableBalance": "608480",
+            "availableBalanceSafe": "608480",
+            "availableBalanceUnSafe": "0"
+        },
+        {
+            "address": "bc1pn9w7nhk2lx8cyvexas0zc0s342t6dsqzg033552c6pqe7l3swk3st5ptss",
+            "overallBalance": "582566",
+            "transferableBalance": "0",
+            "availableBalance": "582566",
+            "availableBalanceSafe": "582566",
+            "availableBalanceUnSafe": "0"
+        },
+        {
+            "address": "bc1pa0rsjcu8uktcxmmdw26qpe4k3rn0f6z2xju9rq3k904ed4kcw8nsl4lux2",
+            "overallBalance": "525000",
+            "transferableBalance": "0",
+            "availableBalance": "525000",
+            "availableBalanceSafe": "525000",
+            "availableBalanceUnSafe": "0"
+        },
+        {
+            "address": "bc1q3yd6kw9x7xvxeafnm5tyqkmx37m0ckl9yx4h2z",
+            "overallBalance": "509513",
+            "transferableBalance": "0",
+            "availableBalance": "509513",
+            "availableBalanceSafe": "509513",
+            "availableBalanceUnSafe": "0"
+        },
+        {
+            "address": "bc1p6hdyvvzktruw9td8ryfcfgsdus0a4kwz3xsv68pqrzn7q5a534dqgekljt",
+            "overallBalance": "500500",
+            "transferableBalance": "162500",
+            "availableBalance": "338000",
+            "availableBalanceSafe": "338000",
+            "availableBalanceUnSafe": "0"
+        }
+    ]
+}

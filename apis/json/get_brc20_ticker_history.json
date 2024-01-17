@@ -1,0 +1,30 @@
+{
+    "height": 826086,
+    "total": 1,
+    "start": 0,
+    "detail": [
+        {
+            "ticker": "sats",
+            "type": "inscribe-mint",
+            "valid": true,
+            "txid": "7aae20f72ca0edb63eea30328a62bad7ea22b96ce9193d5cc6e84961b07247e1",
+            "idx": 0,
+            "vout": 0,
+            "offset": 0,
+            "inscriptionNumber": 357369,
+            "inscriptionId": "7aae20f72ca0edb63eea30328a62bad7ea22b96ce9193d5cc6e84961b07247e1i0",
+            "from": "",
+            "to": "bc1pnhhn92lq3k230sfwagaepy2lzmenn9u2ldj9snaeyckejjgfgulsd0n6pu",
+            "satoshi": 3000,
+            "fee": 2086,
+            "amount": "100000000",
+            "overallBalance": "100000000",
+            "transferBalance": "0",
+            "availableBalance": "100000000",
+            "height": 779972,
+            "txidx": 1046,
+            "blockhash": "000000000000000000016c0ae6753040a11489d77df50df1b832494c26dad408",
+            "blocktime": 1678340348
+        }
+    ]
+}
