@@ -30,6 +30,9 @@ class UnisatAPI:
         url = self.base_url + endpoint
         response = requests.get(url, headers=self.headers, params=params)
         return response
+    
+    def get_best_block_height(self):
+        return self._make_request('brc20/bestheight')
 
     def get_blockchain_info(self):
         return self._make_request('blockchain/info')
