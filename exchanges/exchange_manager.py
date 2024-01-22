@@ -22,6 +22,6 @@ class ExchangeManager:
             for market in filtered_markets:
                 symbol = market["symbol"]
                 data = self.data_fetcher.fetch_data(symbol)
-                self.data_saver.save_data(data, f"{self.exchange_name}_data.txt")
+                self.data_saver.save_data(data, f"{self.exchange_name}_data.json")
         except Exception as e:
             handle_error(f"Error processing markets for {self.exchange_name}", e)
