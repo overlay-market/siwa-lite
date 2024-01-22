@@ -100,12 +100,13 @@ class UnisatAPI:
     
 def main():
     unisat_api = UnisatAPI()
-    response = unisat_api.get_inscription_info("572aba8c2beb6abfa2d066d9c4a673298e9a99ba0394c40ac22d48bf065d380ei0")
+    # print(unisat_api.get_best_block_height().json())
+    response = unisat_api.get_brc20_ticker_history("ordi", 826827, "inscribe-transfer")
     print(response.json()["data"])
     parent_directory = os.path.dirname(os.path.abspath(__file__))
     json_directory = os.path.join(parent_directory, 'json')
     os.makedirs(json_directory, exist_ok=True)
-    json_file_path = os.path.join(json_directory, 'get_inscription_info.json')
+    json_file_path = os.path.join(json_directory, 'get_brc20_tx_history.json')
     with open(json_file_path, 'w') as file:
         json.dump(response.json()["data"], file, indent=4)
 

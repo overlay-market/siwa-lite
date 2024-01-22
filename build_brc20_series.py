@@ -1,12 +1,6 @@
 import pymongo
 from apis.unisat import UnisatAPI
-
-# import threading
 import time
-
-client = pymongo.MongoClient("mongodb://localhost:27017/")
-db = client["siwa_lite"]
-collection = db["brc20_txs"]
 
 event_types = [
     "inscribe-deploy",
@@ -21,71 +15,21 @@ unisat_api = UnisatAPI()
 
 best_block_height = unisat_api.get_best_block_height().json()["data"]["height"]
 brc20_list = unisat_api.get_brc20_list(0, 300).json()["data"]["detail"]
+brc20_ticker_info = unisat_api.get_brc20_ticker_info(brc20_list[0])
+# last_tx = unisat_api.get_brc20_ticker_history(brc20_list[0], best_block_height, event_type, 0, 100).json()["data"]
 
-tickers = {}
-query = {"ticker": brc20_list[0]}
-sort_field = "_id"
-collection.insert_one(
-    {"ticker": brc20_list[0]}
-)
-tickers[brc20_list[0]] = collection.find_one(query)
-
+def connection_db(ticker):
+    client = pymongo.MongoClient("mongodb://localhost:27017/")
+    db = client["siwa_lite"]
+    collection = db[ticker]
+    return collection
 
 def store_db():
-    global best_block_height
-    print(best_block_height)
-    _best_block_height = unisat_api.get_best_block_height().json()["data"]["height"]
-    if _best_block_height > best_block_height:
-        best_block_height = _best_block_height
-        tx_list = []
+    collection = connection_db(brc20_list[0])
+    for height in range(brc20_ticker_info.json()["data"]["deployHeight"], best_block_height):
+        print("Block height: ", height)
         for event_type in event_types:
-            tx_item = unisat_api.get_brc20_ticker_history(
-                brc20_list[0], _best_block_height, event_type, 0, 100
-            ).json()["data"]
-            tx_list = tx_list + tx_item["detail"]
-        origin_history = tickers[brc20_list[0]]["history"]
-        updated_history = origin_history.append(tx_list)
-        collection.update_one(
-            query,
-            {
-                "$set": {
-                    "history": {
-                        "block_height": _best_block_height,
-                        "details": updated_history
-                    }
-                }
-            },
-        )
-    else:
-        for event_type in event_types:
-            tx_list = []
-            tx_item = unisat_api.get_brc20_ticker_history(
-                brc20_list[0], _best_block_height, event_type, 0, 100
-            ).json()["data"]
-            if (
-                tickers[brc20_list[0]]["history"]["details"]["total"] is not None
-                and tickers[brc20_list[0]]["history"]["details"]["total"]
-                != tx_item["total"]
-            ):
-                tx_list = tx_list + tx_item
-                collection.update_one(
-                    query,
-                    {
-                        "$set": {
-                            "history": {
-                                "block_height": _best_block_height,
-                                "details": {
-                                    tx_list
-                                },
-                            }
-                        }
-                    },
-                )
+            respond = unisat_api.get_brc20_ticker_history(brc20_list[0], height, event_type, 0, 100).json()["data"]
+            collection.insert_one(respond)
 
-def run_interval():
-    while True:
-        store_db()
-        time.sleep(5)  # 300 seconds = 5 minutes
-
-
-run_interval()
+store_db()
