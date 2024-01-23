@@ -18,18 +18,19 @@ y_values = []
 
 for doc in documents:
     for detail in doc.get('detail', []):  # Access the 'detail' field if it exists
-        if detail['type'] == 'inscribe-deploy':  # It can be filtered based on types
+        if detail['type'] == 'inscribe-transfer':  # It can be filtered based on types
             blocktime = detail['blocktime']  # Get the blocktime
             satoshi = detail['satoshi']  # Get the satoshi value
 
             # Convert blocktime to a datetime object and append to X values
-            x_values.append(datetime.fromtimestamp(blocktime))
 
+            x_values.append(datetime.fromtimestamp(blocktime))
+            print(datetime.fromtimestamp(blocktime))
             # Append satoshi to Y values
             y_values.append(satoshi)
 
 # Create the plot
-plt.figure(figsize=(10, 5))
+plt.figure(figsize=(16, 8))
 plt.plot_date(x_values, y_values, linestyle='solid')
 
 # Format the plot
