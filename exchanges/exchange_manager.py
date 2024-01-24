@@ -65,7 +65,7 @@ class ExchangeManager:
 
                     # Save the data after setting the option_type
                     self.data_saver.save_data(
-                        self.exchange_name, option_order_books_data
+                        option_order_books_data, self.exchange_name
                     )
 
                     # Count the occurrences of each expiry date
