@@ -33,10 +33,10 @@ class CoinMarketCapAPI(CryptoAPI):
         """
         Constructs all the necessary attributes for the CoinMarketCapAPI object.
         """
-        source = 'coinmarketcap'
+        source = "coinmarketcap"
         super().__init__(
             url="https://pro-api.coinmarketcap.com/v1/cryptocurrency/listings/latest",
-            source=source
+            source=source,
         )
         self.headers = {
             self.CMC_PRO_API_KEY: self.get_api_key(source),
@@ -53,12 +53,8 @@ class CoinMarketCapAPI(CryptoAPI):
         Returns:
             Dict[str, Any]: A dictionary with data fetched from API.
         """
-        parameters = {
-            self.LIMIT: N
-        }
-        response = requests.get(
-            self.url, headers=self.headers, params=parameters
-        )
+        parameters = {self.LIMIT: N}
+        response = requests.get(self.url, headers=self.headers, params=parameters)
         data = response.json()
         return data
 
@@ -96,12 +92,8 @@ class CoinMarketCapAPI(CryptoAPI):
             Dict[str, float]: A dictionary with market cap as keys and other metadata as values.
         """
         url = "https://pro-api.coinmarketcap.com/v1/cryptocurrency/quotes/latest"
-        parameters = {
-            self.ID: id
-        }
-        response = requests.get(
-            url, headers=self.headers, params=parameters
-        )
+        parameters = {self.ID: id}
+        response = requests.get(url, headers=self.headers, params=parameters)
         data = response.json()
 
         market_cap_data = {}
@@ -111,9 +103,9 @@ class CoinMarketCapAPI(CryptoAPI):
             last_updated = token_data[self.LAST_UPDATED]
             market_cap = token_data[self.QUOTE][self.USD][self.MARKET_CAP]
             market_cap_data = {
-                'name': name,
-                'market_cap': market_cap,
-                'last_updated': last_updated,
+                "name": name,
+                "market_cap": market_cap,
+                "last_updated": last_updated,
             }
         return market_cap_data
 
@@ -131,9 +123,9 @@ class CoinMarketCapAPI(CryptoAPI):
         for id in ids:
             mcap_data = self.get_market_cap_of_token(id)
             if mcap_data:
-                market_caps[mcap_data['market_cap']] = {
-                    'name': mcap_data['name'],
-                    'last_updated': mcap_data['last_updated']
+                market_caps[mcap_data["market_cap"]] = {
+                    "name": mcap_data["name"],
+                    "last_updated": mcap_data["last_updated"],
                 }
             time.sleep(0.2)  # To prevent hitting API rate limits
 

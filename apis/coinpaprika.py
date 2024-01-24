@@ -25,10 +25,11 @@ class CoinPaprikaAPI(CryptoAPI):
         """
         Constructs all the necessary attributes for the CoinPaprikaAPI object.
         """
-        self.ohlc_url = "https://api.coinpaprika.com/v1/coins/{coin_id}/ohlcv/latest"  # noqa E501
+        self.ohlc_url = (
+            "https://api.coinpaprika.com/v1/coins/{coin_id}/ohlcv/latest"  # noqa E501
+        )
         super().__init__(
-            url="https://api.coinpaprika.com/v1/coins",
-            source='coinpaprika'
+            url="https://api.coinpaprika.com/v1/coins", source="coinpaprika"
         )
 
     @utils.handle_request_errors
@@ -49,17 +50,18 @@ class CoinPaprikaAPI(CryptoAPI):
             data = response.json()
         else:
             raise requests.exceptions.RequestException(
-                f"Received status code {response.status_code} "
-                f"for URL: {self.url}"
+                f"Received status code {response.status_code} " f"for URL: {self.url}"
             )
         # Sorting the coins by market cap
         # Also filtering out coins with rank 0 (junk values in API response)
-        filtered_data = [coin for coin in data if coin['rank'] != 0]
-        sorted_data = sorted(filtered_data, key=lambda coin: coin['rank'])[:N]
+        filtered_data = [coin for coin in data if coin["rank"] != 0]
+        sorted_data = sorted(filtered_data, key=lambda coin: coin["rank"])[:N]
         return sorted_data
 
     @utils.handle_request_errors
-    def extract_market_cap(self, data: List[Dict[str, Any]]) -> Dict[float, Dict[str, Any]]:
+    def extract_market_cap(
+        self, data: List[Dict[str, Any]]
+    ) -> Dict[float, Dict[str, Any]]:
         """
         Extracts market cap data from API response.
 
@@ -87,7 +89,7 @@ class CoinPaprikaAPI(CryptoAPI):
 
             name = coin["name"]
             last_updated = 0  # Updated every 5 mins as per docs: https://api.coinpaprika.com/#tag/Coins/paths/~1coins~1%7Bcoin_id%7D~1ohlcv~1today~1/get # noqa E501
-            market_cap = coin_info[0]['market_cap']
+            market_cap = coin_info[0]["market_cap"]
             market_data[market_cap] = {
                 "name": name,
                 "last_updated": last_updated,

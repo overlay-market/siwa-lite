@@ -37,7 +37,7 @@ class CryptoCompareAPI(CryptoAPI):
         """
         super().__init__(
             url="https://min-api.cryptocompare.com/data/top/mktcapfull",
-            source='cryptocompare'
+            source="cryptocompare",
         )
 
     @utils.handle_request_errors
@@ -66,8 +66,7 @@ class CryptoCompareAPI(CryptoAPI):
             data = response.json()
         else:
             raise requests.exceptions.RequestException(
-                f"Received status code {response.status_code} "
-                f"for URL: {self.url}"
+                f"Received status code {response.status_code} " f"for URL: {self.url}"
             )
         missing_count = 0
         for coin in data[self.DATA]:
@@ -118,7 +117,7 @@ class CryptoCompareAPI(CryptoAPI):
         """
         url = "https://min-api.cryptocompare.com/data/pricemultifull"
         tokens_upper = [token.upper() for token in tokens]
-        tokens_comma_sep = ','.join(tokens_upper)
+        tokens_comma_sep = ",".join(tokens_upper)
         parameters = {
             self.FSYMS: tokens_comma_sep,
             self.TSYMS: self.USD,
@@ -133,7 +132,7 @@ class CryptoCompareAPI(CryptoAPI):
                     market_cap = data[self.RAW][token][self.USD][self.MKTCAP]
                     last_updated = data[self.RAW][token][self.USD][self.LAST_UPDATE]
                     market_caps[market_cap] = {
-                        'name': token,
-                        'last_updated': last_updated,
+                        "name": token,
+                        "last_updated": last_updated,
                     }
         return market_caps

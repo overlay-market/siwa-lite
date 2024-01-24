@@ -20,7 +20,7 @@ class CryptoAPI:
             Abstract method to extract market cap data.
     """
 
-    API_KEYS_FILE = 'api_keys.json'
+    API_KEYS_FILE = "api_keys.json"
 
     def __init__(self, url: str, source: str) -> None:
         """
@@ -52,9 +52,7 @@ class CryptoAPI:
 
         # Store market data in the database
         utils.create_market_cap_database()
-        utils.store_market_cap_data(
-            market_data=market_data, source=self.source
-        )
+        utils.store_market_cap_data(market_data=market_data, source=self.source)
         return market_data
 
     def fetch_mcap_by_rank(self, N: int) -> dict:
@@ -77,9 +75,7 @@ class CryptoAPI:
 
         # Store market data in the database
         utils.create_market_cap_database()
-        utils.store_market_cap_data(
-            market_data=market_data, source=self.source
-        )
+        utils.store_market_cap_data(market_data=market_data, source=self.source)
         return market_data
 
     def get_data(self, N: int) -> Any:

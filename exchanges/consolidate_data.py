@@ -4,7 +4,6 @@ from data_filter import DataFilter
 
 
 class ConsolidateData:
-
     def __init__(self, exchange: str):
         self.exchange = exchange
         self.data_filter = DataFilter()
@@ -66,8 +65,7 @@ class ConsolidateData:
             return standardized_data
 
         except (ccxt.NetworkError, ccxt.ExchangeError) as e:
-            self._handle_error(
-                f"Error standardizing data for symbol '{symbol}'", e)
+            self._handle_error(f"Error standardizing data for symbol '{symbol}'", e)
             return {}
 
     def _is_valid_quote(self, data: dict) -> bool:

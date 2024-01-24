@@ -10,6 +10,7 @@ import datetime
 
 class MissingDataException(Exception):
     """Raised when the expected data is missing in an API response"""
+
     pass
 
 
@@ -18,13 +19,11 @@ def convert_timestamp_to_unixtime(timestamp):
     Takes a timestamp e.g. '2022-08-11T09:10:12.364Z' and
     returns a unix time 1660209012.364
     """
-    unix_datetime = datetime.datetime.strptime(
-        timestamp, '%Y-%m-%dT%H:%M:%S.%f%z'
-    )
+    unix_datetime = datetime.datetime.strptime(timestamp, "%Y-%m-%dT%H:%M:%S.%f%z")
     return unix_datetime.timestamp()
 
 
-def create_market_cap_database(db_path: str = 'data.db') -> None:
+def create_market_cap_database(db_path: str = "data.db") -> None:
     """
     Creates a SQLite database (if not exists) to store market cap data.
 
@@ -45,8 +44,7 @@ def create_market_cap_database(db_path: str = 'data.db') -> None:
 
 
 def store_market_cap_data(
-        market_data: Dict[float, Dict[str, Any]],
-        source: str, db_path: str = 'data.db'
+    market_data: Dict[float, Dict[str, Any]], source: str, db_path: str = "data.db"
 ) -> None:
     """
     Stores market cap data into the SQLite database.
@@ -62,14 +60,13 @@ def store_market_cap_data(
         cursor.execute(
             "INSERT INTO market_cap_data (name, market_cap, last_updated_time, load_time, source)"
             "VALUES (?, ?, ?, ?, ?)",
-            (md['name'], market_cap, md['last_updated'], int(time.time()), source))
+            (md["name"], market_cap, md["last_updated"], int(time.time()), source),
+        )
     conn.commit()
     conn.close()
 
 
-def handle_request_errors(
-        func: Callable[..., Any]
-) -> Callable[..., Optional[Any]]:
+def handle_request_errors(func: Callable[..., Any]) -> Callable[..., Optional[Any]]:
     """
     Decorator function to handle request errors.
 
@@ -79,6 +76,7 @@ def handle_request_errors(
     Returns:
         Callable[..., Optional[Any]]: The decorated function.
     """
+
     @wraps(func)
     def wrapper(*args, **kwargs):
         try:
@@ -87,6 +85,7 @@ def handle_request_errors(
             print("Error occurred while making the API request:", str(e))
             print("Warning: Continuing with the rest of the execution.")
             return None
+
     return wrapper
 
 

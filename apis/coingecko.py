@@ -17,6 +17,7 @@ class CoinGeckoAPI(CryptoAPI):
         extract_market_cap(data: Dict[str, Any]) -> Dict[float, Dict[str, str]]:
             Extracts market cap data from API response.
     """
+
     VS_CURRENCY = "usd"
     ORDER = "market_cap_desc"
     PAGE = 1
@@ -31,8 +32,7 @@ class CoinGeckoAPI(CryptoAPI):
         Constructs all the necessary attributes for the CoinGeckoAPI object.
         """
         super().__init__(
-            url="https://api.coingecko.com/api/v3/coins/markets",
-            source='coingecko'
+            url="https://api.coingecko.com/api/v3/coins/markets", source="coingecko"
         )
 
     @utils.handle_request_errors
@@ -92,7 +92,7 @@ class CoinGeckoAPI(CryptoAPI):
         """
         market_caps = {}
 
-        tokens_comma_sep = ','.join(tokens)
+        tokens_comma_sep = ",".join(tokens)
 
         parameters = {
             "vs_currency": self.VS_CURRENCY,
@@ -107,7 +107,7 @@ class CoinGeckoAPI(CryptoAPI):
                 name = d.get(self.NAME_KEY)
                 last_updated = d.get(self.LAST_UPDATED_KEY)
                 market_caps[market_cap] = {
-                    'name': name,
-                    'last_updated': last_updated,
+                    "name": name,
+                    "last_updated": last_updated,
                 }
         return market_caps

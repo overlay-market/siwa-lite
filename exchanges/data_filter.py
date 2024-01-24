@@ -23,8 +23,7 @@ class DataFilter:
         try:
             call_price = call_data.get("mid_price")
             put_price = put_data.get("mid_price")
-            strike_price = float(call_data.get(
-                "order_book", {}).get("bids", [])[0][0])
+            strike_price = float(call_data.get("order_book", {}).get("bids", [])[0][0])
 
             if call_price is None or put_price is None:
                 return 0  # Handle the case where either call or put prices are not available
@@ -47,8 +46,7 @@ class DataFilter:
                 symbol = option_data.get("symbol")
                 forward_price = option_data.get("mark_price")
                 spot_price = option_data.get("current_spot_price")
-                time_to_maturity_years = option_data.get(
-                    "time_to_maturity_years")
+                time_to_maturity_years = option_data.get("time_to_maturity_years")
 
                 if (
                     symbol
@@ -74,14 +72,12 @@ class DataFilter:
         try:
             call_price = call_data.get("mid_price")
             put_price = put_data.get("mid_price")
-            strike_price = float(call_data.get(
-                "order_book", {}).get("bids", [])[0][0])
+            strike_price = float(call_data.get("order_book", {}).get("bids", [])[0][0])
 
             if call_price is None or put_price is None:
                 return 0  # Handle the case where either call or put prices are not available
 
-            forward_price = strike_price + \
-                strike_price * (call_price - put_price)
+            forward_price = strike_price + strike_price * (call_price - put_price)
 
             return forward_price
         except Exception as e:

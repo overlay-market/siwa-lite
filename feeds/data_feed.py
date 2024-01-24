@@ -1,4 +1,4 @@
-#stdlib
+# stdlib
 import os
 import time
 import logging
@@ -8,33 +8,33 @@ from collections import deque
 from datetime import datetime, timezone
 from dataclasses import dataclass
 
-#third party
+# third party
 import pandas as pd
 
-#our stuff
+# our stuff
 import constants as c
 
 #'%(asctime)s:%(thread)d - %(name)s - %(levelname)s - %(message)s')
-logger = logging.getLogger('SQLLogger')
+logger = logging.getLogger("SQLLogger")
 logger.setLevel(logging.INFO)
-logger.propagate = False # TODO determine if undesirable
+logger.propagate = False  # TODO determine if undesirable
+
 
 @dataclass
 class DataFeed:
-    ''' The base-level implementation for all data feeds, which should inherit from DataFeed and implement the get_data_point method as required.
-    '''
+    """The base-level implementation for all data feeds, which should inherit from DataFeed and implement the get_data_point method as required."""
 
-    #NOTE: all child classes must define these class-level attributes
+    # NOTE: all child classes must define these class-level attributes
     CHAIN: str
     NAME: str
     ID: int
-    HEARTBEAT: int              #in seconds
-    START_TIME: float           #unix timestamp
+    HEARTBEAT: int  # in seconds
+    START_TIME: float  # unix timestamp
     DATAPOINT_DEQUE: deque
 
-    #NOTE: the below are default attrs inherited by child classes
+    # NOTE: the below are default attrs inherited by child classes
     ACTIVE: bool = False
-    COUNT: int = 0              #number of data points served since starting
+    COUNT: int = 0  # number of data points served since starting
     DATA_KEYS = (c.FEED_NAME, c.TIME_STAMP, c.DATA_POINT)
 
     @classmethod
@@ -43,39 +43,39 @@ class DataFeed:
 
     @classmethod
     def start(cls):
-        ''' flag feed as active so it can start receiving/processing data '''
+        """flag feed as active so it can start receiving/processing data"""
         cls.START_TIME = time.time()
         cls.ACTIVE = True
 
     @classmethod
     def stop(cls):
-        ''' stop / pause feed from receiving/processing data
+        """stop / pause feed from receiving/processing data
         for some feeds, this may involve some cleanup, disconnecting a stream etc.
-        and would be handled in the overridden stop() method in that specific feed'''
+        and would be handled in the overridden stop() method in that specific feed"""
         cls.ACTIVE = False
 
     @classmethod
     def run(cls):
-        ''' run the data generating function(s)
+        """run the data generating function(s)
         for some feeds this may be a loop,
         in others it may be handled by a library e.g. tweepy (twitter) stream
-        in that case there would be an overridden run() method in that feed'''
+        in that case there would be an overridden run() method in that feed"""
 
         while cls.ACTIVE:
             dp = cls.create_new_data_point()
-            logger.info(f'\nNext data point for {cls.NAME}: {dp}\n')
+            logger.info(f"\nNext data point for {cls.NAME}: {dp}\n")
             cls.DATAPOINT_DEQUE.append(dp)
             cls.COUNT += 1
             time.sleep(cls.HEARTBEAT)
 
     @classmethod
     def create_new_data_point(cls):
-        ''' NOTE: this method must be implemented by the child class '''
+        """NOTE: this method must be implemented by the child class"""
         raise NotImplementedError
 
     @classmethod
     def get_most_recently_stored_data_point(cls):
-        ''' pass '''
+        """pass"""
         data_point = cls.DATAPOINT_DEQUE[-1] if len(cls.DATAPOINT_DEQUE) else None
         to_serve = (cls.NAME, time.time(), data_point)
         return dict(zip(cls.DATA_KEYS, to_serve))
