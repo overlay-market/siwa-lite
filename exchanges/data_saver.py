@@ -6,7 +6,7 @@ from utils import handle_error
 class DataSaver:
     @staticmethod
     def save_data(data, filename):
-        if data is None:
+        if data is None or not isinstance(filename, str):
             return
         try:
             folder_name = "data_folder"
