@@ -1,4 +1,4 @@
-from exchanges.constants.urls import BINANCE_API_URL
+from constants.urls import BINANCE_API_URL
 from utils import handle_error
 import ccxt
 import requests
@@ -21,7 +21,7 @@ class DataFetcher:
             standardized_data = self.consolidate_data.standardize_data(symbol, response)
             return standardized_data
         except (ccxt.NetworkError, ccxt.ExchangeError) as e:
-            self._handle_error(f"Error fetching order book for symbol '{symbol}'", e)
+            handle_error(f"Error fetching order book for symbol '{symbol}'", e)
 
     def fetch_binance_option_symbols(self):
         try:
@@ -42,7 +42,7 @@ class DataFetcher:
                 logger.error(f"Error: {response.status_code}")
                 return []
         except (requests.RequestException, Exception) as e:
-            self._handle_error("Error fetching Binance option symbols", e)
+            handle_error("Error fetching Binance option symbols", e)
             return []
 
     def fetch_future_order_books(self, limit=100):
@@ -67,7 +67,7 @@ class DataFetcher:
                 print(standardized_data)
 
         except (ccxt.NetworkError, ccxt.ExchangeError) as e:
-            self._handle_error("Error fetching future order books", e)
+            handle_error("Error fetching future order books", e)
 
     def fetch_price(self, symbol, price_type):
         try:
@@ -75,7 +75,7 @@ class DataFetcher:
             price = ticker.get(price_type)
             return price
         except (ccxt.NetworkError, ccxt.ExchangeError) as e:
-            self._handle_error(f"Error fetching {price_type} for symbol '{symbol}'", e)
+            handle_error(f"Error fetching {price_type} for symbol '{symbol}'", e)
             return None
 
     def fetch_mark_price(self, symbol):
@@ -91,5 +91,5 @@ class DataFetcher:
             return (bid + ask) / 2 if bid is not None and ask is not None else None
 
         except (ccxt.NetworkError, ccxt.ExchangeError) as e:
-            self._handle_error(f"Error fetching spot price for symbol '{symbol}'", e)
+            handle_error(f"Error fetching spot price for symbol '{symbol}'", e)
             return None

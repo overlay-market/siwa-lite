@@ -1,5 +1,6 @@
 import math
 from datetime import datetime
+from utils import handle_error
 
 
 class DataFilter:
@@ -32,7 +33,7 @@ class DataFilter:
 
             return forward_price
         except Exception as e:
-            self._handle_error("Error calculating implied forward price", e)
+            handle_error("Error calculating implied forward price", e)
             return 0
 
     @staticmethod
@@ -61,7 +62,7 @@ class DataFilter:
 
             return yield_curve
         except Exception as e:
-            self._handle_error("Error calculating yield curve", e)
+            handle_error("Error calculating yield curve", e)
             return {}
 
     @staticmethod
@@ -88,5 +89,5 @@ class DataFilter:
             return max(time_to_maturity_years, 0)
 
         except Exception as e:
-            self._handle_error("Error calculating time to maturity", e)
+            handle_error("Error calculating time to maturity", e)
             return 0

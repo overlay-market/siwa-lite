@@ -1,6 +1,7 @@
 from constants.utils import SPREAD_MULTIPLIER, SPREAD_MIN
 import ccxt
 from data_filter import DataFilter
+from utils import handle_error
 
 
 class ConsolidateData:
@@ -67,7 +68,7 @@ class ConsolidateData:
             return standardized_data
 
         except (ccxt.NetworkError, ccxt.ExchangeError) as e:
-            self.logging(f"Error standardizing data for symbol '{symbol}'", e)
+            handle_error(f"Error standardizing data for symbol '{symbol}'", e)
             return {}
 
     def _is_valid_quote(self, data):
