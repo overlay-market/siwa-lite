@@ -19,8 +19,7 @@ def main():
         deribit_future = DeribitManager(
             symbol_filter="BTC/USD:BTC", market_type="future"
         )
-        okx_option = OKXManager(
-            symbol_filter="BTC/USD:BTC", market_type="option")
+        okx_option = OKXManager(symbol_filter="BTC/USD:BTC", market_type="option")
         okx_future = OKXManager(symbol_filter="BTC", market_type="future")
         # bybit_option = BybitManager(symbol_filter="BTC/USDC:USDC", market_type="option")
         # bybit_future = BybitManager(symbol_filter="BTC", market_type="future")

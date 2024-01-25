@@ -11,8 +11,8 @@ import logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-class ExchangeManager:
 
+class ExchangeManager:
     def __init__(self, exchange_name, symbol_filter, market_type):
         self.exchange = getattr(ccxt, exchange_name)()
         self.symbol_filter = symbol_filter
@@ -48,18 +48,23 @@ class ExchangeManager:
         most_common_expiry = self.find_most_common_expiry(expiry_counts)
 
         if most_common_expiry:
-            filtered_data = self.filter_data_by_expiry(filtered_data, most_common_expiry)
+            filtered_data = self.filter_data_by_expiry(
+                filtered_data, most_common_expiry
+            )
 
             min_diff_strike = self.find_minimum_difference_strike(filtered_data)
 
             if min_diff_strike:
                 call_data, put_data, bids, asks = self.extract_call_put_and_bids_asks(
-                    min_diff_strike, filtered_data)
+                    min_diff_strike, filtered_data
+                )
 
                 implied_forward_price = 0.23
 
                 if implied_forward_price > 0:
-                    self.calculate_implied_forward_price(call_data, bids, implied_forward_price)
+                    self.calculate_implied_forward_price(
+                        call_data, bids, implied_forward_price
+                    )
 
             else:
                 print("No valid bid-ask pairs found in the filtered data.")
@@ -67,7 +72,9 @@ class ExchangeManager:
             self.data_saver.save_data(filtered_data, filename="filtered_data.json")
 
     def filter_near_term_options(self, markets):
-        return [market for market in markets if market.get("option_type") != "near_term"]
+        return [
+            market for market in markets if market.get("option_type") != "near_term"
+        ]
 
     def extract_expiry_and_filter_data(self, markets):
         expiry_counts = Counter()
@@ -82,12 +89,14 @@ class ExchangeManager:
                 continue
 
             expiration_date = self.extract_expiration_date(symbol)
-            time_to_maturity_years = self.data_filter.calculate_time_to_maturity(self, option_order_books_data)
+            time_to_maturity_years = self.data_filter.calculate_time_to_maturity(
+                self, option_order_books_data
+            )
 
             if time_to_maturity_years <= 30 / 365:
-                option_order_books_data['option_type'] = 'near_term'
+                option_order_books_data["option_type"] = "near_term"
             elif time_to_maturity_years > 30 / 365:
-                option_order_books_data['option_type'] = 'next_term'
+                option_order_books_data["option_type"] = "next_term"
 
             self.data_saver.save_data(option_order_books_data, self.exchange_name)
 
@@ -107,25 +116,26 @@ class ExchangeManager:
 
     def filter_data_by_expiry(self, filtered_data, most_common_expiry):
         date_format = "%y%m%d"
-        return [data for data in filtered_data if datetime.strptime(
-            data.get("symbol").split("-")[1], date_format) == most_common_expiry]
+        return [
+            data
+            for data in filtered_data
+            if datetime.strptime(data.get("symbol").split("-")[1], date_format)
+            == most_common_expiry
+        ]
 
     def find_minimum_difference_strike(self, filtered_data):
         min_diff_strike = None
-        min_diff_value = float('inf')
+        min_diff_value = float("inf")
 
         for data in filtered_data:
-            bids = data.get('order_book', {}).get('bids', [])
-            asks = data.get('order_book', {}).get('asks', [])
+            bids = data.get("order_book", {}).get("bids", [])
+            asks = data.get("order_book", {}).get("asks", [])
             if bids and asks:
                 diff_strike = min(
-                    zip(bids, asks),
-                    key=lambda x: abs(
-                        float(x[0][0]) - float(x[1][0]))
+                    zip(bids, asks), key=lambda x: abs(float(x[0][0]) - float(x[1][0]))
                 )
 
-                diff_value = abs(
-                    float(diff_strike[0][0]) - float(diff_strike[1][0]))
+                diff_value = abs(float(diff_strike[0][0]) - float(diff_strike[1][0]))
 
                 if diff_value < min_diff_value:
                     min_diff_value = diff_value
@@ -135,17 +145,23 @@ class ExchangeManager:
         return min_diff_strike
 
     def extract_call_put_and_bids_asks(self, min_diff_strike, filtered_data):
-        call_data = {'mid_price': min_diff_strike[0][0], 'order_book': {
-            'bids': [min_diff_strike[0]]}}
-        put_data = {'mid_price': min_diff_strike[1][0], 'order_book': {
-            'asks': [min_diff_strike[1]]}}
+        call_data = {
+            "mid_price": min_diff_strike[0][0],
+            "order_book": {"bids": [min_diff_strike[0]]},
+        }
+        put_data = {
+            "mid_price": min_diff_strike[1][0],
+            "order_book": {"asks": [min_diff_strike[1]]},
+        }
 
         bids, asks = [], []
 
         for data in filtered_data:
-            if 'bids' in data.get('order_book', {}) and 'asks' in data.get('order_book', {}):
-                bids += data['order_book']['bids']
-                asks += data['order_book']['asks']
+            if "bids" in data.get("order_book", {}) and "asks" in data.get(
+                "order_book", {}
+            ):
+                bids += data["order_book"]["bids"]
+                asks += data["order_book"]["asks"]
 
         return call_data, put_data, bids, asks
 
@@ -158,12 +174,12 @@ class ExchangeManager:
                     largest_strike = bid_strike
 
         if largest_strike > 0:
-            print(f"Largest Strike (KATM) for {call_data['order_book']['bids'][0][0]}: {largest_strike}")
+            print(
+                f"Largest Strike (KATM) for {call_data['order_book']['bids'][0][0]}: {largest_strike}"
+            )
         else:
             print("No valid bid-ask pairs found in the filtered data.")
 
     def process_future_markets(self):
         future_order_books_data = self.data_fetcher.fetch_future_order_books()
-        self.data_saver.save_data(
-            future_order_books_data, self.exchange_name
-        )
+        self.data_saver.save_data(future_order_books_data, self.exchange_name)

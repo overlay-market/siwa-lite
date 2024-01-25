@@ -4,7 +4,6 @@ from data_filter import DataFilter
 
 
 class ConsolidateData:
-
     def __init__(self, exchange):
         self.exchange = exchange
         self.data_filter = DataFilter()
@@ -17,7 +16,8 @@ class ConsolidateData:
             spot_price = self.data_fetcher.fetch_price(symbol, "last")
             mark_price = self.data_fetcher.fetch_mark_price(symbol)
             time_to_maturity = self.data_filter.calculate_time_to_maturity(
-                self, order_book_data)
+                self, order_book_data
+            )
 
             if spot_price is None or mark_price is None:
                 return {}
@@ -67,8 +67,7 @@ class ConsolidateData:
             return standardized_data
 
         except (ccxt.NetworkError, ccxt.ExchangeError) as e:
-            self.logging(
-                f"Error standardizing data for symbol '{symbol}'", e)
+            self.logging(f"Error standardizing data for symbol '{symbol}'", e)
             return {}
 
     def _is_valid_quote(self, data):

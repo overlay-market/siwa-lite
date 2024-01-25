@@ -22,8 +22,7 @@ class DataFilter:
         try:
             call_price = call_data.get("mid_price")
             put_price = put_data.get("mid_price")
-            strike_price = float(call_data.get(
-                "order_book", {}).get("bids", [])[0][0])
+            strike_price = float(call_data.get("order_book", {}).get("bids", [])[0][0])
 
             if call_price is None or put_price is None:
                 return 0  # Handle the case where either call or put prices are not available
@@ -37,17 +36,14 @@ class DataFilter:
             return 0
 
     @staticmethod
-    def calculate_yield_curve(
-        self, option_data_list
-    ):
+    def calculate_yield_curve(self, option_data_list):
         yield_curve = {}
         try:
             for option_data in option_data_list:
                 symbol = option_data.get("symbol")
                 forward_price = option_data.get("mark_price")
                 spot_price = option_data.get("current_spot_price")
-                time_to_maturity_years = option_data.get(
-                    "time_to_maturity_years")
+                time_to_maturity_years = option_data.get("time_to_maturity_years")
 
                 if (
                     symbol
@@ -77,19 +73,15 @@ class DataFilter:
                 return 0
 
             expiration_date_str = symbol.split("-")[1]
-            date_format = "%y%m%d" if len(
-                expiration_date_str) == 6 else "%d%m%Y"
+            date_format = "%y%m%d" if len(expiration_date_str) == 6 else "%d%m%Y"
 
             current_date = datetime.utcnow()
             current_date = datetime.strptime(
-                current_date.strftime(
-                    "%Y-%m-%d %H:%M:%S.%f"), "%Y-%m-%d %H:%M:%S.%f"
+                current_date.strftime("%Y-%m-%d %H:%M:%S.%f"), "%Y-%m-%d %H:%M:%S.%f"
             )
-            expiration_date = datetime.strptime(
-                expiration_date_str, date_format)
+            expiration_date = datetime.strptime(expiration_date_str, date_format)
 
-            time_to_maturity_seconds = (
-                expiration_date - current_date).total_seconds()
+            time_to_maturity_seconds = (expiration_date - current_date).total_seconds()
             time_to_maturity_days = time_to_maturity_seconds / (24 * 3600)
             time_to_maturity_years = time_to_maturity_days / 365.0
 
