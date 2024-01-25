@@ -10,8 +10,8 @@ logger = logging.getLogger(__name__)
 
 def main():
     try:
-        # binance_option = BinanceManager(exchange_name='binance', symbol_filter=None, market_type="option")
-        # binance_future = BinanceManager(exchange_name='binance', symbol_filter="BTC", market_type="future")
+        # binance_option = BinanceManager(symbol_filter=None, market_type="option")
+        # binance_future = BinanceManager(symbol_filter="BTC", market_type="future")
         deribit_option = DeribitManager(
             symbol_filter="BTC/USD:BTC", market_type="option"
         )
@@ -25,8 +25,8 @@ def main():
 
         # Process markets for each exchange
         for manager in [
-            # binance_option,
-            # binance_future,
+            binance_option,
+            binance_future,
             deribit_option,
             deribit_future,
             # okx_option,
