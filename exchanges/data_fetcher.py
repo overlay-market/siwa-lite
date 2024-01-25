@@ -1,8 +1,8 @@
+from exchanges.order_books import BINANCE_API_URL
 from utils import handle_error
 import ccxt
 import requests
 import logging
-from constants import BINANCE_API_URL
 import time
 from consolidate_data import ConsolidateData
 

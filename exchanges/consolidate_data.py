@@ -1,6 +1,7 @@
-from constants import SPREAD_MIN, SPREAD_MULTIPLIER
+
 import ccxt
 from data_filter import DataFilter
+from exchanges.order_books import SPREAD_MULTIPLIER, SPREAD_MIN
 
 
 class ConsolidateData:
