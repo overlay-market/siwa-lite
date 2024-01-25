@@ -5,7 +5,7 @@ from utils import handle_error
 
 class DataSaver:
     @staticmethod
-    def save_data(data, filename):
+    def save_data(data, filename, exchange_name=None):
         if data is None or not isinstance(filename, str):
             return
         if not filename.endswith(".json"):

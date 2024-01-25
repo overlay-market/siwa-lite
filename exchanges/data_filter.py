@@ -1,13 +1,12 @@
 import math
-from typing import List, Dict, Union
 from datetime import datetime
 
 
 class DataFilter:
     @staticmethod
     def calculate_implied_interest_rate(
-        self, forward_price: float, spot_price: float, time_to_maturity_years: float
-    ) -> float:
+        self, forward_price, spot_price, time_to_maturity_years
+    ):
         try:
             return (
                 (math.log(forward_price) - math.log(spot_price))
@@ -19,11 +18,12 @@ class DataFilter:
             return 0
 
     @staticmethod
-    def calculate_implied_forward_price(self, call_data: dict, put_data: dict) -> float:
+    def calculate_implied_forward_price(self, call_data, put_data):
         try:
             call_price = call_data.get("mid_price")
             put_price = put_data.get("mid_price")
-            strike_price = float(call_data.get("order_book", {}).get("bids", [])[0][0])
+            strike_price = float(call_data.get(
+                "order_book", {}).get("bids", [])[0][0])
 
             if call_price is None or put_price is None:
                 return 0  # Handle the case where either call or put prices are not available
@@ -38,15 +38,16 @@ class DataFilter:
 
     @staticmethod
     def calculate_yield_curve(
-        self, option_data_list: List[Dict[str, Union[str, int, float]]]
-    ) -> Dict[str, List[float]]:
+        self, option_data_list
+    ):
         yield_curve = {}
         try:
             for option_data in option_data_list:
                 symbol = option_data.get("symbol")
                 forward_price = option_data.get("mark_price")
                 spot_price = option_data.get("current_spot_price")
-                time_to_maturity_years = option_data.get("time_to_maturity_years")
+                time_to_maturity_years = option_data.get(
+                    "time_to_maturity_years")
 
                 if (
                     symbol
@@ -68,18 +69,32 @@ class DataFilter:
             return {}
 
     @staticmethod
-    def calculate_implied_forward_price(self, call_data: dict, put_data: dict) -> float:
+    def calculate_time_to_maturity(self, option_order_books_data):
         try:
-            call_price = call_data.get("mid_price")
-            put_price = put_data.get("mid_price")
-            strike_price = float(call_data.get("order_book", {}).get("bids", [])[0][0])
+            symbol = option_order_books_data.get("symbol")
 
-            if call_price is None or put_price is None:
-                return 0  # Handle the case where either call or put prices are not available
+            if symbol is None:
+                return 0
 
-            forward_price = strike_price + strike_price * (call_price - put_price)
+            expiration_date_str = symbol.split("-")[1]
+            date_format = "%y%m%d" if len(
+                expiration_date_str) == 6 else "%d%m%Y"
 
-            return forward_price
+            current_date = datetime.utcnow()
+            current_date = datetime.strptime(
+                current_date.strftime(
+                    "%Y-%m-%d %H:%M:%S.%f"), "%Y-%m-%d %H:%M:%S.%f"
+            )
+            expiration_date = datetime.strptime(
+                expiration_date_str, date_format)
+
+            time_to_maturity_seconds = (
+                expiration_date - current_date).total_seconds()
+            time_to_maturity_days = time_to_maturity_seconds / (24 * 3600)
+            time_to_maturity_years = time_to_maturity_days / 365.0
+
+            return max(time_to_maturity_years, 0)
+
         except Exception as e:
-            self._handle_error("Error calculating implied forward price", e)
+            self._handle_error("Error calculating time to maturity", e)
             return 0

@@ -1,22 +1,23 @@
-
+from constants.utils import SPREAD_MULTIPLIER, SPREAD_MIN
 import ccxt
 from data_filter import DataFilter
-from exchanges.order_books import SPREAD_MULTIPLIER, SPREAD_MIN
 
 
 class ConsolidateData:
-    def __init__(self, exchange: str):
+
+    def __init__(self, exchange):
         self.exchange = exchange
         self.data_filter = DataFilter()
 
-    def standardize_data(self, symbol: str, order_book_data: dict) -> dict:
+    def standardize_data(self, symbol, order_book_data):
         try:
             from data_fetcher import DataFetcher
 
             self.data_fetcher = DataFetcher(self.exchange)
             spot_price = self.data_fetcher.fetch_price(symbol, "last")
             mark_price = self.data_fetcher.fetch_mark_price(symbol)
-            time_to_maturity = 0
+            time_to_maturity = self.data_filter.calculate_time_to_maturity(
+                self, order_book_data)
 
             if spot_price is None or mark_price is None:
                 return {}
@@ -66,10 +67,11 @@ class ConsolidateData:
             return standardized_data
 
         except (ccxt.NetworkError, ccxt.ExchangeError) as e:
-            self._handle_error(f"Error standardizing data for symbol '{symbol}'", e)
+            self.logging(
+                f"Error standardizing data for symbol '{symbol}'", e)
             return {}
 
-    def _is_valid_quote(self, data: dict) -> bool:
+    def _is_valid_quote(self, data):
         try:
             mark_price = float(data.get("mark_price", 0))
             bid_price = float(data.get("order_book", {}).get("bids", [])[0][0])

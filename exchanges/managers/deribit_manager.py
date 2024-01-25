@@ -1,4 +1,4 @@
-from exchanges.exchange_manager import ExchangeManager
+from exchange_manager import ExchangeManager
 
 
 class DeribitManager(ExchangeManager):
