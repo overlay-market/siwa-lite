@@ -35,13 +35,11 @@ if last_document["height"] > brc20_ticker_info.json()["data"]["deployHeight"]:
 
 def store_db():
     global collection
-    temp = {}
     for height in range(start_block_height, best_block_height - 1):
         print("Block height: ", height)
         for event_type in event_types:
-            respond = unisat_api.get_brc20_ticker_history(brc20_list[0], height, event_type, 0, 100).json()["data"]
-            if respond is not temp:
+            respond = unisat_api.get_brc20_ticker_history(brc20_list[0], height, event_type, 0, 100).json()["data"]["detail"]
+            if respond is not []:
                 collection.insert_one(respond)
-                temp = respond
 
 store_db()
