@@ -80,7 +80,7 @@ class ExchangeManager:
         expiry_counts = Counter()
         filtered_data = []
 
-        for market in markets[:60]:
+        for market in markets:
             symbol = market.get("symbol")
             option_order_books_data = self.data_fetcher.fetch_option_order_books(symbol)
 
