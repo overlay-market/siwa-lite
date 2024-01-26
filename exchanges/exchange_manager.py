@@ -69,9 +69,10 @@ class ExchangeManager:
                         call_data, bids, implied_forward_price
                     )
 
+                    rm = 2.5
                     katm_strike = float(call_data["order_book"]["bids"][0][0])
                     call_data, put_data = self.select_otm_options(
-                        call_data, put_data, katm_strike)
+                        call_data, put_data, katm_strike, implied_forward_price, rm)
 
                     print("Call Data after OTM selection:", call_data)
                     print("Put Data after OTM selection:", put_data)
@@ -82,25 +83,23 @@ class ExchangeManager:
             self.data_saver.save_data(
                 filtered_data, filename="filtered_data.json")
 
-    def select_otm_options(self, call_data, put_data, katm_strike):
+    def select_otm_options(self, call_data, put_data, katm_strike, implied_forward_price, range_mult=2.5):
+        # Calculate Kmin and Kmax
+        k_min = implied_forward_price / range_mult
+        k_max = implied_forward_price * range_mult
+
         call_strike = float(call_data["order_book"]["bids"][0][0])
         put_strike = float(put_data["order_book"]["asks"][0][0])
 
-        if call_strike == put_strike == katm_strike:
-            # If both call and put options are at the same strike (KATM), take the average
-            mid_price = (float(call_data["mid_price"]) +
-                         float(put_data["mid_price"])) / 2
-            call_data["mid_price"] = mid_price
-            put_data["mid_price"] = mid_price
+        if k_min < call_strike < k_max and k_min < put_strike < k_max:
+            # If both call and put options are within the specified range, keep them
+            return call_data, put_data
         else:
-            # If different strikes, select the option with the closest strike to KATM
-            katm_diff_call = abs(call_strike - katm_strike)
-            katm_diff_put = abs(put_strike - katm_strike)
-
-            if katm_diff_call < katm_diff_put:
-                put_data["mid_price"] = None  # Skip the put option
-            else:
+            # Otherwise, skip the option that is outside the range
+            if call_strike < k_min or call_strike > k_max:
                 call_data["mid_price"] = None  # Skip the call option
+            if put_strike < k_min or put_strike > k_max:
+                put_data["mid_price"] = None  # Skip the put option
 
         return call_data, put_data
 
@@ -113,7 +112,7 @@ class ExchangeManager:
         expiry_counts = Counter()
         filtered_data = []
 
-        for market in markets[:20]:
+        for market in markets:
             symbol = market.get("symbol")
             option_order_books_data = self.data_fetcher.fetch_option_order_books(
                 symbol)
