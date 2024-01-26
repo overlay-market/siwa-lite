@@ -4,6 +4,7 @@ from market_filter import MarketFilter
 from data_saver import DataSaver
 from utils import handle_error
 from data_filter import DataFilter
+from itertools import groupby
 from collections import Counter
 from datetime import datetime
 import logging
@@ -150,12 +151,35 @@ class ExchangeManager:
 
     def filter_data_by_expiry(self, filtered_data, most_common_expiry):
         date_format = "%y%m%d"
-        return [
-            data
-            for data in filtered_data
-            if datetime.strptime(data.get("symbol").split("-")[1], date_format)
-            == most_common_expiry
-        ]
+        sorted_data = sorted(filtered_data, key=lambda x: x.get(
+            "order_book", {}).get("bids", [])[0][0])
+
+        grouped_data = {}
+        for key, group in groupby(sorted_data, key=lambda x: x.get("symbol").split("-")[1]):
+            grouped_data[key] = list(group)
+
+        filtered_data_after_threshold = []
+
+        # Set the minimum bid threshold based on tick size
+        tick_size = 0.01  # Replace with the actual tick size for your options
+
+        for expiry_date, data_list in grouped_data.items():
+            sorted_data_by_strike = sorted(data_list, key=lambda x: x.get(
+                "order_book", {}).get("bids", [])[0][0])
+            consecutive_bids = 0
+
+            for data in sorted_data_by_strike:
+                bids = data.get("order_book", {}).get("bids", [])
+                if bids:
+                    if float(bids[0][0]) <= tick_size:
+                        consecutive_bids += 1
+                        if consecutive_bids >= 5:
+                            break  # Stop processing if five consecutive bids are below or equal to the threshold
+                    else:
+                        consecutive_bids = 0  # Reset consecutive bids count
+                    filtered_data_after_threshold.append(data)
+
+        return filtered_data_after_threshold
 
     def find_minimum_difference_strike(self, filtered_data):
         min_diff_strike = None
