@@ -1,6 +1,7 @@
 import logging
 from exchange_manager import ExchangeManager
 from managers.binance_manager import BinanceManager
+from managers.bybit_manager import BybitManager
 from managers.deribit_manager import DeribitManager
 from managers.okx_manager import OKXManager
 
@@ -21,16 +22,16 @@ def main():
         )
         okx_option = OKXManager(symbol_filter="BTC/USD:BTC", market_type="option")
         okx_future = OKXManager(symbol_filter="BTC", market_type="future")
-        # bybit_option = BybitManager(symbol_filter="BTC/USDC:USDC", market_type="option")
+        bybit_option = BybitManager(symbol_filter="BTC/USDC:USDC", market_type="option")
         # bybit_future = BybitManager(symbol_filter="BTC", market_type="future")
 
         # Process markets for each exchange
         for manager in [
             # binance_option,
             # binance_future,
-            deribit_option,
+            # deribit_option,
             # deribit_future,
-            # okx_option,
+            okx_option,
             # okx_future,
             # bybit_option,
             # bybit_future,
