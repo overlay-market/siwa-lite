@@ -33,7 +33,8 @@ class ExchangeManager:
                 logging.error("Invalid market type: %s", self.market_type)
 
         except Exception as e:
-            handle_error(f"Error processing markets for {self.exchange_name}", e)
+            handle_error(
+                f"Error processing markets for {self.exchange_name}", e)
 
     def process_option_markets(self):
         self.exchange.load_markets()
@@ -43,7 +44,8 @@ class ExchangeManager:
 
         markets = self.filter_near_term_options(markets)
 
-        expiry_counts, filtered_data = self.extract_expiry_and_filter_data(markets)
+        expiry_counts, filtered_data = self.extract_expiry_and_filter_data(
+            markets)
 
         most_common_expiry = self.find_most_common_expiry(expiry_counts)
 
@@ -52,7 +54,8 @@ class ExchangeManager:
                 filtered_data, most_common_expiry
             )
 
-            min_diff_strike = self.find_minimum_difference_strike(filtered_data)
+            min_diff_strike = self.find_minimum_difference_strike(
+                filtered_data)
 
             if min_diff_strike:
                 call_data, put_data, bids, asks = self.extract_call_put_and_bids_asks(
@@ -66,10 +69,40 @@ class ExchangeManager:
                         call_data, bids, implied_forward_price
                     )
 
+                    katm_strike = float(call_data["order_book"]["bids"][0][0])
+                    call_data, put_data = self.select_otm_options(
+                        call_data, put_data, katm_strike)
+
+                    print("Call Data after OTM selection:", call_data)
+                    print("Put Data after OTM selection:", put_data)
+
             else:
                 print("No valid bid-ask pairs found in the filtered data.")
 
-            self.data_saver.save_data(filtered_data, filename="filtered_data.json")
+            self.data_saver.save_data(
+                filtered_data, filename="filtered_data.json")
+
+    def select_otm_options(self, call_data, put_data, katm_strike):
+        call_strike = float(call_data["order_book"]["bids"][0][0])
+        put_strike = float(put_data["order_book"]["asks"][0][0])
+
+        if call_strike == put_strike == katm_strike:
+            # If both call and put options are at the same strike (KATM), take the average
+            mid_price = (float(call_data["mid_price"]) +
+                         float(put_data["mid_price"])) / 2
+            call_data["mid_price"] = mid_price
+            put_data["mid_price"] = mid_price
+        else:
+            # If different strikes, select the option with the closest strike to KATM
+            katm_diff_call = abs(call_strike - katm_strike)
+            katm_diff_put = abs(put_strike - katm_strike)
+
+            if katm_diff_call < katm_diff_put:
+                put_data["mid_price"] = None  # Skip the put option
+            else:
+                call_data["mid_price"] = None  # Skip the call option
+
+        return call_data, put_data
 
     def filter_near_term_options(self, markets):
         return [
@@ -80,9 +113,10 @@ class ExchangeManager:
         expiry_counts = Counter()
         filtered_data = []
 
-        for market in markets:
+        for market in markets[:20]:
             symbol = market.get("symbol")
-            option_order_books_data = self.data_fetcher.fetch_option_order_books(symbol)
+            option_order_books_data = self.data_fetcher.fetch_option_order_books(
+                symbol)
 
             if not option_order_books_data:
                 print(f"No data fetched for symbol: {symbol}")
@@ -98,7 +132,8 @@ class ExchangeManager:
             elif time_to_maturity_years > 30 / 365:
                 option_order_books_data["option_type"] = "next_term"
 
-            self.data_saver.save_data(option_order_books_data, self.exchange_name)
+            self.data_saver.save_data(
+                option_order_books_data, self.exchange_name)
 
             expiry_counts[expiration_date] += 1
             filtered_data.append(option_order_books_data)
@@ -135,7 +170,8 @@ class ExchangeManager:
                     zip(bids, asks), key=lambda x: abs(float(x[0][0]) - float(x[1][0]))
                 )
 
-                diff_value = abs(float(diff_strike[0][0]) - float(diff_strike[1][0]))
+                diff_value = abs(
+                    float(diff_strike[0][0]) - float(diff_strike[1][0]))
 
                 if diff_value < min_diff_value:
                     min_diff_value = diff_value
