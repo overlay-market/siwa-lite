@@ -1,7 +1,6 @@
 import pymongo
 from datetime import datetime
 import pandas as pd
-import numpy as np
 import matplotlib.pyplot as plt
 
 # Connect to MongoDB (replace with actual connection details)
@@ -9,25 +8,21 @@ client = pymongo.MongoClient("mongodb://localhost:27017/")
 db = client["siwa_lite"]
 collection = db["brc20_data"]
 
-# Query the collection for documents
-documents = collection.find()
+# Query the collection for documents (adjust the query as needed)
+documents = list(collection.find({}))
 
-# Prepare dataframe to hold the data
-df = pd.DataFrame(columns=['timestamp', 'value'])
-
-# Extract data to dataframe
+# If you received raw dictionary-like objects and need to normalize datetime field:
 for doc in documents:
-    # Assuming doc contains 'timestamp' and 'value'
-    timestamp = doc.get('timestamp')
-    value = doc.get('value')
-    
-    # Convert timestamp to a readable datetime format and append to dataframe
-    datetime_object = datetime.fromtimestamp(timestamp)
-    df = df.append({'timestamp': datetime_object, 'value': value}, ignore_index=True)
+    if isinstance(doc['timestamp'], (int, float)):  # Assuming UNIX timestamp in seconds
+        doc['timestamp'] = datetime.fromtimestamp(doc['timestamp'])
 
-# Sort by timestamp in case the data was not in sequential order
-df.sort_values('timestamp', inplace=True)
-df.set_index('timestamp', inplace=True)
+# Convert documents to DataFrame
+df = pd.DataFrame(documents)
+
+# Convert 'timestamp' to datetime if necessary and set it as index
+df['timestamp'] = pd.to_datetime(df['timestamp'], unit='s')  # Adjust 'unit' as per requirement
+df = df.set_index('timestamp')
+df.sort_index(inplace=True)
 
 # Calculate simple moving averages (SMA) to represent `twap_60min` and `twap_10min`
 window_sizes = {'twap_60min': 60, 'twap_10min': 10}
@@ -48,5 +43,18 @@ plt.ylabel("Residual value")
 plt.legend()
 plt.show()
 
-# Now, the df contains the original data, the TWAP values, and the residuals.
-# You can perform further analysis, save the dataframe, or manipulate it as needed.
+# Storing residuals back to MongoDB
+
+# Now, the df contains original data, the TWAP values, and the residuals.
+# You can save the DataFrame back into MongoDB, in a new collection for example:
+new_collection = db['brc20_residuals']
+# Convert the DataFrame to dict and store it
+residuals_dict = df[['twap_60min_residual', 'twap_10min_residual']].to_dict("records")
+# If you wish to store them in the database, you can use insert or update
+# Depending on your requirement this could be:
+# new_collection.insert_many(residuals_dict)
+# or to update existing documents with new fields:
+for index, row in df.iterrows():
+    update = {"$set": {"twap_60min_residual": row['twap_60min_residual'], 
+                       "twap_10min_residual": row['twap_10min_residual']}}
+    collection.update_one({"_id": row['_id']}, update)
