@@ -1,0 +1,10 @@
+repos:
+- repo: local
+  hooks:
+  - id: commit-msg
+    name: 'Check commit message format'
+    description: 'This hook checks the commit message format (type(scope): description).'
+    entry: '.git/hooks/commit-msg'
+    language: system
+    stages: [commit-msg]
+    args: ['--regex', '^(feat|fix|docs|style|refactor|perf|test|chore)\([a-z]+\): .+']
