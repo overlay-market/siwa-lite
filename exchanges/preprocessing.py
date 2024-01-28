@@ -30,15 +30,24 @@ class Preprocessing:
         put_strike = float(put_data["order_book"]["asks"][0][0])
         print(f"Call Strike: {call_strike}, Put Strike: {put_strike}")
 
-        if k_min < call_strike < k_max and k_min < put_strike < k_max:
-            # If both call and put options are within the specified range, keep them
-            return call_data, put_data
-        else:
-            # Otherwise, skip the option that is outside the range
-            if call_strike < k_min or call_strike > k_max:
-                call_data["mid_price"] = None  # Skip the call option
-            if put_strike < k_min or put_strike > k_max:
-                put_data["mid_price"] = None  # Skip the put option
+        # if k_min < call_strike < k_max and k_min < put_strike < k_max:
+        #     # If both call and put options are within the specified range, keep them
+        #     return call_data, put_data
+        # else:
+        #     # Otherwise, skip the option that is outside the range
+        #     if call_strike < k_min or call_strike > k_max:
+        #         call_data["mid_price"] = None  # Skip the call option
+        #     if put_strike < k_min or put_strike > k_max:
+        #         put_data["mid_price"] = None  # Skip the put option
+        #
+        # return call_data, put_data
+
+        # TODO - Simplify the above code
+
+        if not (k_min < call_strike < k_max):
+            call_data["mid_price"] = None
+        if not (k_min < put_strike < k_max):
+            put_data["mid_price"] = None
 
         return call_data, put_data
 
@@ -59,10 +68,9 @@ class Preprocessing:
                 self, option_order_books_data
             )
 
-            if time_to_maturity_years <= 30 / 365:
-                option_order_books_data["option_type"] = "near_term"
-            elif time_to_maturity_years > 30 / 365:
-                option_order_books_data["option_type"] = "next_term"
+            option_order_books_data["option_type"] = (
+                "near_term" if time_to_maturity_years <= 30 / 365 else "next_term"
+            )
 
             self.data_saver.save_data(option_order_books_data, self.exchange_name)
 
@@ -78,8 +86,7 @@ class Preprocessing:
 
     def extract_expiration_date(self, symbol):
         expiration_date_str = symbol.split("-")[1]
-        date_format = "%y%m%d"
-        return datetime.strptime(expiration_date_str, date_format)
+        return datetime.strptime(expiration_date_str, "%y%m%d")
 
     def find_most_common_expiry(self, expiry_counts):
         most_common_expiry = expiry_counts.most_common(1)
@@ -170,6 +177,9 @@ class Preprocessing:
                 bid_strike = float(bid[0])
                 if bid_strike < implied_forward_price and bid_strike > largest_strike:
                     largest_strike = bid_strike
+
+        # TODO - Rewrite using list comprehension
+        # largest_strike = max([float(bid[0]) for bid in bids if float(bid[0]) < implied_forward_price], default=0)
 
         if largest_strike > 0:
             print(
