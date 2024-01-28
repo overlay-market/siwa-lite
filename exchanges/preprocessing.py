@@ -1,6 +1,9 @@
 from itertools import groupby
 from collections import Counter
 from datetime import datetime
+
+import numpy as np
+
 from data_fetcher import DataFetcher
 from market_filter import MarketFilter
 from data_saver import DataSaver
@@ -174,3 +177,30 @@ class Preprocessing:
             )
         else:
             print("No valid bid-ask pairs found in the filtered data.")
+
+    def calculate_implied_variance(
+        self, F_i, K_i_ATM, strikes, option_prices, r_i, T_i, delta_K
+    ):
+        """
+        Calculate the implied variance of near and next term options.
+
+        :param F_i: float, the implied forward price
+        :param K_i_ATM: float, the ATM strike level
+        :param strikes: list of floats, the strikes K_j
+        :param option_prices: list of floats, the option prices V(K_j) for the corresponding strikes
+        :param r_i: float, the risk-free interest rate
+        :param T_i: float, the time to expiry in years
+        :param delta_K: list of floats, the difference between strikes ΔK_j
+        :return: float, the implied variance σ_{i,t}^2
+        """
+        # Precompute constant
+        discount_factor = np.exp(r_i * T_i)
+
+        # Vectorized operations
+        weights = discount_factor * (delta_K / strikes**2)
+        sum_term = np.dot(weights, option_prices)  # Using dot product for weighted sum
+
+        # Calculate the implied variance using the formula
+        implied_variance = (1 / T_i) * (2 * sum_term - ((F_i / K_i_ATM) - 1) ** 2)
+
+        return implied_variance
