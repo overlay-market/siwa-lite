@@ -1,30 +1,33 @@
 import ccxt
 from data_fetcher import DataFetcher
+from exchanges.constants.utils import RANGE_MULT
 from market_filter import MarketFilter
 from data_saver import DataSaver
 from utils import handle_error
 from data_filter import DataFilter
 import logging
 from preprocessing import Preprocessing
-from constants.utils import RANGE_MULT
 
+# Configure logging to display informational messages
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 
 class ExchangeManager:
     def __init__(self, exchange_name, symbol_filter, market_type):
-        self.exchange = getattr(ccxt, exchange_name)()
-        self.symbol_filter = symbol_filter
-        self.exchange_name = exchange_name
-        self.market_type = market_type
+        # Initialize the ExchangeManager with exchange name, symbol filter, and market type
+        self.exchange = getattr(ccxt, exchange_name)()  # Initialize exchange using ccxt library
+        self.symbol_filter = symbol_filter  # Filter criteria for symbols
+        self.exchange_name = exchange_name  # Name of the exchange
+        self.market_type = market_type  # Type of market (option or future)
+        # Initialize components for data fetching, market filtering, data saving, etc.
         self.data_fetcher = DataFetcher(self.exchange)
         self.market_filter = MarketFilter(self.exchange, self.symbol_filter)
         self.data_saver = DataSaver()
         self.data_filter = DataFilter()
         self.preprocessing = Preprocessing(self.exchange, self.symbol_filter)
-
     def process_markets(self):
+        # Main method to process markets based on the market type
         try:
             if self.market_type == "option":
                 self.process_option_markets()
@@ -38,9 +41,11 @@ class ExchangeManager:
                 f"Error processing markets for {self.exchange_name}", e)
 
     def process_option_markets(self):
+        # Process option markets: load markets, filter, and preprocess data
         self.exchange.load_markets()
         markets = self.market_filter.filter_markets()
 
+        # Define constants and parameters for option market processing
         index_maturity = 30 / 365  # 30 days in terms of years
 
         markets = self.preprocessing.filter_near_term_options(markets)
@@ -80,10 +85,11 @@ class ExchangeManager:
 
             else:
                 print("No valid bid-ask pairs found in the filtered data.")
-
+            # Save the processed and filtered data
             self.data_saver.save_data(
                 filtered_data, filename="filtered_data.json")
 
     def process_future_markets(self):
+        # Process future markets: fetch and save future order books
         future_order_books_data = self.data_fetcher.fetch_future_order_books()
         self.data_saver.save_data(future_order_books_data, self.exchange_name)

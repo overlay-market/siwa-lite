@@ -1,6 +1,6 @@
-from constants.utils import SPREAD_MULTIPLIER, SPREAD_MIN
 import ccxt
 from data_filter import DataFilter
+from exchanges.order_books import SPREAD_MIN, SPREAD_MULTIPLIER
 from utils import handle_error
 
 

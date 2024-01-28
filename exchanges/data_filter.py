@@ -1,6 +1,7 @@
 import math
 from datetime import datetime
-from utils import handle_error
+
+from exchanges.utils import handle_error
 
 
 class DataFilter:

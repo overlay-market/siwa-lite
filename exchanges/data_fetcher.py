@@ -1,4 +1,4 @@
-from constants.urls import BINANCE_API_URL
+from exchanges.constants.urls import BINANCE_API_URL
 from utils import handle_error
 import ccxt
 import requests

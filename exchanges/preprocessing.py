@@ -25,6 +25,7 @@ class Preprocessing:
 
         call_strike = float(call_data["order_book"]["bids"][0][0])
         put_strike = float(put_data["order_book"]["asks"][0][0])
+        print(f"Call Strike: {call_strike}, Put Strike: {put_strike}")
 
         if k_min < call_strike < k_max and k_min < put_strike < k_max:
             # If both call and put options are within the specified range, keep them

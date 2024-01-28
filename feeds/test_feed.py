@@ -6,7 +6,7 @@ from numpy import random
 
 
 class Test(DataFeed):
-    NAME = "test"
+    NAME = "tests"
     ID = 0
     HEARTBEAT = 1
     DATAPOINT_DEQUE = deque([], maxlen=100)
