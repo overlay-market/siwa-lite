@@ -28,10 +28,13 @@ class DataSaver:
 
             with open(file_path, "a") as file:
                 # Open file in append mode and write data
-                file.write(separator + json.dumps(data, indent=2))  # Write data with JSON formatting
+                file.write(
+                    separator + json.dumps(data, indent=2)
+                )  # Write data with JSON formatting
         except Exception as e:
             # Handle any exceptions during file operations
             handle_error(f"Error saving data to {filename}", e)
+
 
 # Usage example
 # data_saver = DataSaver()

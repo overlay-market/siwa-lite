@@ -16,7 +16,9 @@ logger = logging.getLogger(__name__)
 class ExchangeManager:
     def __init__(self, exchange_name, symbol_filter, market_type):
         # Initialize the ExchangeManager with exchange name, symbol filter, and market type
-        self.exchange = getattr(ccxt, exchange_name)()  # Initialize exchange using ccxt library
+        self.exchange = getattr(
+            ccxt, exchange_name
+        )()  # Initialize exchange using ccxt library
         self.symbol_filter = symbol_filter  # Filter criteria for symbols
         self.exchange_name = exchange_name  # Name of the exchange
         self.market_type = market_type  # Type of market (option or future)
@@ -26,6 +28,7 @@ class ExchangeManager:
         self.data_saver = DataSaver()
         self.data_filter = DataFilter()
         self.preprocessing = Preprocessing(self.exchange, self.symbol_filter)
+
     def process_markets(self):
         # Main method to process markets based on the market type
         try:
@@ -37,8 +40,7 @@ class ExchangeManager:
                 logging.error("Invalid market type: %s", self.market_type)
 
         except Exception as e:
-            handle_error(
-                f"Error processing markets for {self.exchange_name}", e)
+            handle_error(f"Error processing markets for {self.exchange_name}", e)
 
     def process_option_markets(self):
         # Process option markets: load markets, filter, and preprocess data
@@ -50,11 +52,12 @@ class ExchangeManager:
 
         markets = self.preprocessing.filter_near_term_options(markets)
 
-        expiry_counts, filtered_data = self.preprocessing.extract_expiry_and_filter_data(
-            markets)
+        (
+            expiry_counts,
+            filtered_data,
+        ) = self.preprocessing.extract_expiry_and_filter_data(markets)
 
-        most_common_expiry = self.preprocessing.find_most_common_expiry(
-            expiry_counts)
+        most_common_expiry = self.preprocessing.find_most_common_expiry(expiry_counts)
 
         if most_common_expiry:
             filtered_data = self.preprocessing.filter_data_by_expiry(
@@ -62,10 +65,16 @@ class ExchangeManager:
             )
 
             min_diff_strike = self.preprocessing.find_minimum_difference_strike(
-                filtered_data)
+                filtered_data
+            )
 
             if min_diff_strike:
-                call_data, put_data, bids, asks = self.preprocessing.extract_call_put_and_bids_asks(
+                (
+                    call_data,
+                    put_data,
+                    bids,
+                    asks,
+                ) = self.preprocessing.extract_call_put_and_bids_asks(
                     min_diff_strike, filtered_data
                 )
 
@@ -78,7 +87,12 @@ class ExchangeManager:
 
                     katm_strike = float(call_data["order_book"]["bids"][0][0])
                     call_data, put_data = self.preprocessing.select_otm_options(
-                        call_data, put_data, katm_strike, implied_forward_price, RANGE_MULT)
+                        call_data,
+                        put_data,
+                        katm_strike,
+                        implied_forward_price,
+                        RANGE_MULT,
+                    )
 
                     print("Call Data after OTM selection:", call_data)
                     print("Put Data after OTM selection:", put_data)
@@ -86,8 +100,7 @@ class ExchangeManager:
             else:
                 print("No valid bid-ask pairs found in the filtered data.")
             # Save the processed and filtered data
-            self.data_saver.save_data(
-                filtered_data, filename="filtered_data.json")
+            self.data_saver.save_data(filtered_data, filename="filtered_data.json")
 
     def process_future_markets(self):
         # Process future markets: fetch and save future order books

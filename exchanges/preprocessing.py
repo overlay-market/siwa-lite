@@ -8,17 +8,17 @@ from data_filter import DataFilter
 
 
 class Preprocessing:
-
     def __init__(self, exchange_name, symbol_filter):
         self.exchange_name = exchange_name
         self.symbol_filter = symbol_filter
         self.data_fetcher = DataFetcher(self.exchange_name)
-        self.market_filter = MarketFilter(
-            self.exchange_name, self.symbol_filter)
+        self.market_filter = MarketFilter(self.exchange_name, self.symbol_filter)
         self.data_saver = DataSaver()
         self.data_filter = DataFilter()
 
-    def select_otm_options(self, call_data, put_data, katm_strike, implied_forward_price, range_mult):
+    def select_otm_options(
+        self, call_data, put_data, katm_strike, implied_forward_price, range_mult
+    ):
         # Calculate Kmin and Kmax
         k_min = implied_forward_price / range_mult
         k_max = implied_forward_price * range_mult
@@ -45,8 +45,7 @@ class Preprocessing:
 
         for market in markets:
             symbol = market.get("symbol")
-            option_order_books_data = self.data_fetcher.fetch_option_order_books(
-                symbol)
+            option_order_books_data = self.data_fetcher.fetch_option_order_books(symbol)
 
             if not option_order_books_data:
                 print(f"No data fetched for symbol: {symbol}")
@@ -62,8 +61,7 @@ class Preprocessing:
             elif time_to_maturity_years > 30 / 365:
                 option_order_books_data["option_type"] = "next_term"
 
-            self.data_saver.save_data(
-                option_order_books_data, self.exchange_name)
+            self.data_saver.save_data(option_order_books_data, self.exchange_name)
 
             expiry_counts[expiration_date] += 1
             filtered_data.append(option_order_books_data)
@@ -86,11 +84,14 @@ class Preprocessing:
 
     def filter_data_by_expiry(self, filtered_data, most_common_expiry):
         date_format = "%y%m%d"
-        sorted_data = sorted(filtered_data, key=lambda x: x.get(
-            "order_book", {}).get("bids", [])[0][0])
+        sorted_data = sorted(
+            filtered_data, key=lambda x: x.get("order_book", {}).get("bids", [])[0][0]
+        )
 
         grouped_data = {}
-        for key, group in groupby(sorted_data, key=lambda x: x.get("symbol").split("-")[1]):
+        for key, group in groupby(
+            sorted_data, key=lambda x: x.get("symbol").split("-")[1]
+        ):
             grouped_data[key] = list(group)
 
         filtered_data_after_threshold = []
@@ -99,8 +100,9 @@ class Preprocessing:
         tick_size = 0.01  # Replace with the actual tick size for your options
 
         for expiry_date, data_list in grouped_data.items():
-            sorted_data_by_strike = sorted(data_list, key=lambda x: x.get(
-                "order_book", {}).get("bids", [])[0][0])
+            sorted_data_by_strike = sorted(
+                data_list, key=lambda x: x.get("order_book", {}).get("bids", [])[0][0]
+            )
             consecutive_bids = 0
 
             for data in sorted_data_by_strike:
@@ -128,8 +130,7 @@ class Preprocessing:
                     zip(bids, asks), key=lambda x: abs(float(x[0][0]) - float(x[1][0]))
                 )
 
-                diff_value = abs(
-                    float(diff_strike[0][0]) - float(diff_strike[1][0]))
+                diff_value = abs(float(diff_strike[0][0]) - float(diff_strike[1][0]))
 
                 if diff_value < min_diff_value:
                     min_diff_value = diff_value
