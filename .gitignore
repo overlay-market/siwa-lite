@@ -1,2 +1,5 @@
 exchanges/data_folder
 exchanges/constants/.env
+/venv
+__pycache__/
+.env

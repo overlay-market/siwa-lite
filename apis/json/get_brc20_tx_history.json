@@ -1,0 +1,30 @@
+{
+    "height": 826832,
+    "total": 1,
+    "start": 0,
+    "detail": [
+        {
+            "ticker": "ordi",
+            "type": "inscribe-transfer",
+            "valid": true,
+            "txid": "278d7d13906b45520860747e0d6cf32d30b6f46dbdeb5fed56f0d1b0ea8e0a3e",
+            "idx": 0,
+            "vout": 0,
+            "offset": 0,
+            "inscriptionNumber": 56868649,
+            "inscriptionId": "278d7d13906b45520860747e0d6cf32d30b6f46dbdeb5fed56f0d1b0ea8e0a3ei0",
+            "from": "",
+            "to": "bc1p98um2fxnf9jk0unt2elqsr54e5hlhd4st788x73nlh050pgrcjesksqwly",
+            "satoshi": 546,
+            "fee": 9513,
+            "amount": "1",
+            "overallBalance": "1",
+            "transferBalance": "1",
+            "availableBalance": "0",
+            "height": 826827,
+            "txidx": 805,
+            "blockhash": "000000000000000000020994a9d61ad8ff44c4e51c805ee0d0e35b8d2ee8c89d",
+            "blocktime": 1705923784
+        }
+    ]
+}

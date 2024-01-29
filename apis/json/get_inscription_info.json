@@ -1,0 +1,44 @@
+{
+    "utxo": {
+        "txid": "572aba8c2beb6abfa2d066d9c4a673298e9a99ba0394c40ac22d48bf065d380e",
+        "vout": 0,
+        "satoshi": 546,
+        "scriptType": "5120",
+        "scriptPk": "5120691a58214b127f9c6ec1fac38d5da6fc0461e28264afd428c7c879b7d12c2c78",
+        "codeType": 9,
+        "address": "bc1pdyd9sg2tzflecmkpltpc6hdxlszxrc5zvjhag2x8epum05fv93uqmdrnrn",
+        "height": 826061,
+        "idx": 2700,
+        "isOpInRBF": false,
+        "inscriptions": [
+            {
+                "inscriptionNumber": 55937465,
+                "inscriptionId": "572aba8c2beb6abfa2d066d9c4a673298e9a99ba0394c40ac22d48bf065d380ei0",
+                "offset": 0,
+                "moved": false,
+                "sequence": 0,
+                "isBRC20": true
+            }
+        ]
+    },
+    "address": "bc1pdyd9sg2tzflecmkpltpc6hdxlszxrc5zvjhag2x8epum05fv93uqmdrnrn",
+    "offset": 0,
+    "inscriptionIndex": 0,
+    "inscriptionNumber": 55937465,
+    "inscriptionId": "572aba8c2beb6abfa2d066d9c4a673298e9a99ba0394c40ac22d48bf065d380ei0",
+    "contentType": "text/plain;charset=utf-8",
+    "contentLength": 63,
+    "contentBody": "",
+    "height": 826061,
+    "timestamp": 1705439813,
+    "inSatoshi": 17000,
+    "outSatoshi": 2096,
+    "brc20": {
+        "op": "transfer",
+        "tick": "sats",
+        "lim": "100000000",
+        "amt": "1000000000",
+        "decimal": "18"
+    },
+    "detail": null
+}
