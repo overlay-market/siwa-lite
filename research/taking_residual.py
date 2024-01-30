@@ -2,6 +2,8 @@ import pymongo
 from datetime import datetime
 import pandas as pd
 import matplotlib.pyplot as plt
+from time_series.time_series import TimeSeries
+import numpy as np
 
 # Connect to MongoDB (replace with actual connection details)
 client = pymongo.MongoClient("mongodb://localhost:27017/")
@@ -32,6 +34,84 @@ for name, window in window_sizes.items():
 # Calculate residuals by subtracting the TWAPs from the original values
 for col in window_sizes.keys():
     df[f'{col}_residual'] = df['value'] - df[col]
+
+
+# Limit df to last ~10 days (10*48 rows) to visualise better
+df_last60 = df.iloc[-10*48:, :]
+ts = TimeSeries(df_last60, 'timestamp', 'eth_burn')
+decom = ts.decompose(period=48)
+ts.plot_decomposition()
+
+# Check ADF to see if time series is stationary
+series, d = ts.check_stationarity(100)
+
+# Check to see if residual after decomposition is stationary
+resid = decom.resid.dropna()
+resid = pd.DataFrame(resid)
+resid['timestamp'] = resid.index
+ts_resid = TimeSeries(pd.DataFrame(resid), 'timestamp', 'resid')
+series, d = ts_resid.check_stationarity(100)
+
+ts_all = TimeSeries(df, 'timestamp', 'eth_burn')
+decom = ts_all.decompose(period=48)
+resid = decom.resid.dropna()
+resid = pd.DataFrame(resid)
+resid.reset_index(inplace=True)
+
+def rolling_mean_variance(df, t, col):
+    """
+    Calculate rolling mean and variance with data manipulation:
+    1. Adjust data mean to 0.
+    2. Set max value to the absolute of the min value.
+
+    Args:
+    df (pandas.DataFrame): Input dataframe.
+    t (int): Rolling window size.
+    col (str): Column name on which to perform the operation.
+
+    Returns:
+    pandas.DataFrame: DataFrame with rolling mean and variance.
+    """
+
+    def manipulate_data(window):
+        # Adjust the mean to 0
+        window_mean = np.mean(window)
+        window -= window_mean
+
+        # Set max value to negative of the min value
+        min_val = np.min(window)
+        window[window >= abs(min_val)] = abs(min_val)
+
+        # Calculate the mean and variance of the manipulated window
+        mean_adjusted = np.mean(window)  # should be close to 0
+        var_adjusted = np.var(window)
+        
+        return mean_adjusted, var_adjusted
+
+    # Store the results in lists
+    rolling_means = []
+    rolling_vars = []
+
+    # Perform the rolling window calculation
+    for start in range(len(df) - t + 1):
+        end = start + t
+        window = df[col][start:end]
+        mean_adjusted, var_adjusted = manipulate_data(window)
+        rolling_means.append(mean_adjusted)
+        rolling_vars.append(var_adjusted)
+
+    # Construct the resulting DataFrame
+    result = pd.DataFrame({
+        'rolling_mean': rolling_means,
+        'rolling_var': rolling_vars
+    }, index=df.index[t-1:])
+
+    return result
+
+res = rolling_mean_variance(resid, 48, 'resid')
+resid_mean_var = res.join(resid)
+
+
 
 # Plot the residuals
 plt.figure(figsize=(12, 6))
