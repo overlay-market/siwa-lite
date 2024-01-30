@@ -214,3 +214,100 @@ class Preprocessing:
         implied_variance = (1 / T_i) * (2 * sum_term - ((F_i / K_i_ATM) - 1) ** 2)
 
         return implied_variance
+
+    def interpolate_variance(self, T_NEAR, T_NEXT, T_INDEX):
+        """
+        Calculate the weights for the near and next term variances based on the given times to maturity.
+
+        Parameters:
+        T_NEAR (float): Time to maturity for the near term.
+        T_NEXT (float): Time to maturity for the next term.
+        T_INDEX (float): Time to maturity for the index.
+
+        Returns:
+        tuple: A tuple containing the weights for the near term (omega_NEAR) and the next term (omega_NEXT).
+        """
+        omega_NEAR_t = (T_NEXT - T_INDEX) / (T_NEXT - T_NEAR) / T_INDEX
+        omega_NEXT_t = (T_INDEX - T_NEAR) / (T_NEXT - T_NEAR) / T_NEXT
+
+        return omega_NEAR_t, omega_NEXT_t
+
+    def calculate_raw_implied_variance(
+        self, omega_NEAR_t, sigma2_NEAR_t, omega_NEXT_t, sigma2_NEXT_t
+    ):
+        """
+        Calculate the raw value of implied variance at the index maturity.
+
+        Parameters:
+        omega_NEAR_t (float): Weight for the near term variance.
+        sigma2_NEAR_t (float): Near term variance.
+        omega_NEXT_t (float): Weight for the next term variance.
+        sigma2_NEXT_t (float): Next term variance.
+
+        Returns:
+        float: The raw value of implied variance at the index maturity.
+        """
+        sigma2_RAW_t = omega_NEAR_t * sigma2_NEAR_t + omega_NEXT_t * sigma2_NEXT_t
+        return sigma2_RAW_t
+
+    def calculate_ewma(self, lambda_param, sigma2_SMOOTH_t_minus_1, sigma2_RAW_t):
+        """
+        Calculate the Exponentially-Weighted Moving Average (EWMA) of raw implied variance.
+
+        Parameters:
+        lambda_param (float): The smoothing parameter lambda.
+        sigma2_SMOOTH_t_minus_1 (float): The previous value of the smoothed implied variance.
+        sigma2_RAW_t (float): The raw implied variance at time t.
+
+        Returns:
+        float: The smoothed implied variance at time t.
+        """
+        sigma2_SMOOTH_t = (
+            lambda_param * sigma2_SMOOTH_t_minus_1 + (1 - lambda_param) * sigma2_RAW_t
+        )
+        return sigma2_SMOOTH_t
+
+    def calculate_ewma_recursive(
+        self, lambda_param, tau, sigma2_SMOOTH_previous, sigma2_RAW_history
+    ):
+        """
+        Calculate the Exponentially-Weighted Moving Average (EWMA) of raw implied variance recursively.
+
+        Parameters:
+        lambda_param (float): The smoothing parameter lambda.
+        tau (int): The number of periods over which the half-life is defined.
+        sigma2_SMOOTH_previous (float): The smoothed variance at time t-tau.
+        sigma2_RAW_history (list of float): The raw implied variances from time t-tau to t-1.
+
+        Returns:
+        float: The smoothed implied variance at time t.
+        """
+        ewma = lambda_param**tau * sigma2_SMOOTH_previous
+        for i in range(tau):
+            ewma += (1 - lambda_param) * (lambda_param**i) * sigma2_RAW_history[i]
+        return ewma
+
+    def calculate_lambda_with_half_life(self, tau):
+        """
+        Calculate the smoothing parameter lambda based on the specified half-life tau.
+
+        Parameters:
+        tau (float): The half-life of the exponentially-weighted moving average in seconds.
+
+        Returns:
+        float: The calculated smoothing parameter lambda.
+        """
+        lambda_param = np.exp(-np.log(2) / tau)
+        return lambda_param
+
+    def calculate_xVIV(self, sigma_smooth_t):
+        """
+        Calculate the xVIV value based on the given smoothed variance at time t.
+
+        Parameters:
+        sigma_smooth_t (float): The smoothed variance at time t.
+
+        Returns:
+        float: The calculated xVIV value.
+        """
+        return 100 * np.sqrt(sigma_smooth_t**2)

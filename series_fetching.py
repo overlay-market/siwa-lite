@@ -31,11 +31,12 @@ def connection_db(ticker):
     collection = db[ticker]  # Select the collection based on the ticker name.
     return collection
 
+
 # Connect to the database for the first BRC20 token in the list.
 collection = connection_db(brc20_list[0])
 
 # Retrieve the last document from the collection, sorted by the _id field (descending).
-last_document = collection.find_one({}, sort=[('_id', pymongo.DESCENDING)])
+last_document = collection.find_one({}, sort=[("_id", pymongo.DESCENDING)])
 
 # Determine the block height from which to start processing records.
 start_block_height = brc20_ticker_info.json()["data"]["deployHeight"]
@@ -45,18 +46,24 @@ if last_document["height"] > brc20_ticker_info.json()["data"]["deployHeight"]:
     # Remove the last document which is potentially partial or incomplete.
     collection.delete_one({"_id": last_document["_id"]})
 
+
 def store_db():
     global collection  # Declare the global collection variable to be used within this function.
     # Loop through block heights starting from the determined start block height up to the best block height.
     for height in range(start_block_height, best_block_height - 1):
-        print("Block height: ", height)  # Output the current block height being processed.
+        print(
+            "Block height: ", height
+        )  # Output the current block height being processed.
         # Process each event type.
         for event_type in event_types:
             # Query the BRC20 ticker history for the current block height and event type.
-            respond = unisat_api.get_brc20_ticker_history(brc20_list[0], height, event_type, 0, 100).json()["data"]["detail"]
+            respond = unisat_api.get_brc20_ticker_history(
+                brc20_list[0], height, event_type, 0, 100
+            ).json()["data"]["detail"]
             # If the response is not empty, insert the data into the MongoDB collection.
             if respond is not []:
                 collection.insert_one(respond)
+
 
 # Call the store_db function to start storing records into the database.
 store_db()
