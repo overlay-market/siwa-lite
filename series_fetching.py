@@ -53,9 +53,9 @@ def store_db():
         # Process each event type.
         for event_type in event_types:
             # Query the BRC20 ticker history for the current block height and event type.
-            respond = unisat_api.get_brc20_ticker_history(brc20_list[0], height, event_type, 0, 100).json()["data"]["detail"]
+            respond = unisat_api.get_brc20_ticker_history(brc20_list[0], height, event_type, 0, 100).json()["data"]
             # If the response is not empty, insert the data into the MongoDB collection.
-            if respond is not []:
+            if respond['detail'] is not []:
                 collection.insert_one(respond)
 
 # Call the store_db function to start storing records into the database.

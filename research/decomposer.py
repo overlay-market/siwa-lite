@@ -4,7 +4,7 @@ from statsmodels.graphics.tsaplots import plot_acf
 from statsmodels.tsa.stattools import adfuller
 
 
-class TimeSeries:
+class Decomposer:
     def __init__(self, df, time_col, target_col):
         self.df = df
         self.time_col = time_col
