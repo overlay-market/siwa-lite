@@ -1,12 +1,15 @@
+import json
+from typing import List, Dict, Any
+
 import ccxt
-from data_fetcher import DataFetcher
-from constants.utils import RANGE_MULT
-from market_filter import MarketFilter
-from data_saver import DataSaver
-from utils import handle_error
-from data_filter import DataFilter
-import logging
+
+from constants.utils import DEBUG_LIMIT
 from preprocessing import Preprocessing
+from handlers.future import FutureMarketHandler
+from handlers.option import OptionMarketHandler
+from handlers.spot import SpotMarketHandler
+
+import logging
 
 # Configure logging to display informational messages
 logging.basicConfig(level=logging.INFO)
@@ -14,214 +17,67 @@ logger = logging.getLogger(__name__)
 
 
 class ExchangeManager:
-    def __init__(self, exchange_name, symbol_filter, market_type):
-        # Initialize the ExchangeManager with exchange name, symbol filter, and market type
-        self.exchange = getattr(
-            ccxt, exchange_name
-        )()  # Initialize exchange using ccxt library
-        self.symbol_filter = symbol_filter  # Filter criteria for symbols
-        self.exchange_name = exchange_name  # Name of the exchange
-        self.market_type = market_type  # Type of market (option or future)
-        # Initialize components for data fetching, market filtering, data saving, etc.
-        self.data_fetcher = DataFetcher(self.exchange)
-        self.market_filter = MarketFilter(self.exchange, self.symbol_filter)
-        self.data_saver = DataSaver()
-        self.data_filter = DataFilter()
-        self.preprocessing = Preprocessing(self.exchange, self.symbol_filter)
+    def __init__(self, exchange_id, pairs_to_load, market_types):
+        self.pairs_to_load = self._ensure_list(
+            pairs_to_load
+        )  # Filter criteria for symbols (e.g., 'BTC/USDT' or ['BTC/USDT', 'ETH/USDT'])
+        self.exchange_id = exchange_id  # Name of the exchange (e.g., 'binance')
+        self.market_types = market_types # Type of market option or future or spot
+        self.exchange = getattr(ccxt, self.exchange_id)()
+        self.spot_market_handler = SpotMarketHandler()
+        self.future_market_handler = FutureMarketHandler()
+        self.option_market_handler = OptionMarketHandler(self.exchange, self.market_types)
+        self.preprocessing = Preprocessing(self.exchange, self.market_types)
 
-    def process_markets(self):
-        # Main method to process markets based on the market type
-        try:
-            if self.market_type == "option":
-                self.process_option_markets()
-            elif self.market_type == "future":
-                self.process_future_markets()
-            else:
-                logging.error("Invalid market type: %s", self.market_type)
+    def _ensure_list(self, item):
+        """
+        Convert item to a list if it's not already.
+        Examples:
+        _ensure_list('BTC/USDT') -> ['BTC/USDT']
+        so we just convert "BTC/USDT" to ['BTC/USDT'] so that we can iterate over it later
+        """
 
-        except Exception as e:
-            handle_error(
-                f"Error processing markets for {self.exchange_name}", e)
+        return [item] if isinstance(item, str) else item
 
-    def process_option_markets(self):
-        # Process option markets: load markets, filter, and preprocess data
+    def load_specific_pairs(self) -> Dict[str, Any]:
+        if not self.exchange:
+            return {}
+
         self.exchange.load_markets()
-        markets = self.market_filter.filter_markets()
 
-        # Define constants and parameters for option market processing
-        index_maturity = 30 / 365  # 30 days in terms of years
+        processed_count = 0
+        selected_pairs = {}
+        for market_symbol, market in self.exchange.markets.items():
+            if DEBUG_LIMIT and processed_count >= DEBUG_LIMIT:
+                break  # Stop processing if the debug limit is reached
 
-        # markets = self.preprocessing.filter_near_term_options(markets)
+            if any(
+                market_symbol.startswith(pair_prefix)
+                for pair_prefix in self.pairs_to_load
+            ):
+                if market["type"] in self.market_types:
+                    selected_pairs[market_symbol] = market
+                    processed_count += 1
 
-        (
-            expiry_counts,
-            filtered_data,
-        ) = self.preprocessing.extract_expiry_and_filter_data(markets)
+        self.handle_market_type(self.market_types, self.pairs_to_load, selected_pairs)
 
-        most_common_expiry = self.preprocessing.find_most_common_expiry(
-            expiry_counts)
+    def handle_market_type(
+        self, market_type: str, symbol: str, market: Dict[str, Any]
+    ) -> None:
+        """
+        Route the market to a specific handler function based on its type.
 
-        if most_common_expiry:
-            filtered_data = self.preprocessing.filter_data_by_expiry(
-                filtered_data, most_common_expiry
-            )
-
-            min_diff_strike = self.preprocessing.find_minimum_difference_strike(
-                filtered_data
-            )
-
-            if min_diff_strike:
-                (
-                    call_data,
-                    put_data,
-                    bids,
-                    asks,
-                ) = self.preprocessing.extract_call_put_and_bids_asks(
-                    min_diff_strike, filtered_data
-                )
-
-                implied_forward_price = self.data_filter.calculate_implied_forward_price(
-                    self, call_data, put_data)
-
-                if implied_forward_price > 0:
-                    print(f'IF {implied_forward_price}')
-
-                    katm_strike = self.preprocessing.calculate_katm_strike(
-                        call_data, put_data, implied_forward_price)
-
-                    call_data, put_data = self.preprocessing.select_otm_options(
-                        call_data,
-                        put_data,
-                        katm_strike,
-                        implied_forward_price,
-                        RANGE_MULT,
-                    )
-
-                    print("Call Data after OTM selection:", call_data)
-                    print("Put Data after OTM selection:", put_data)
-
-                    near_term_data = [
-                        option for option in filtered_data if option["option_type"] == "near_term"]
-                    next_term_data = [
-                        option for option in filtered_data if option["option_type"] == "next_term"]
-
-                    implied_variance_near_list = []
-                    implied_variance_next_list = []
-
-                    # Calculate implied variance for near term
-                    for option_data_near in near_term_data:
-                        strikes = [
-                            float(bid[0]) for bid in option_data_near["order_book"]["bids"]]
-                        option_prices = [
-                            float(bid[1]) for bid in option_data_near["order_book"]["bids"]]
-
-                        T_i = option_data_near["time_to_maturity_years"]
-                        if T_i == 0:
-                            continue
-                        r_i = self.data_filter.calculate_implied_interest_rate(
-                            self,
-                            implied_forward_price,
-                            katm_strike,
-                            T_i
-                        )
-                        delta_K = [strikes[i + 1] - strikes[i]
-                                   for i in range(len(strikes) - 1)]
-
-                        implied_variance_near = self.preprocessing.calculate_implied_variance(
-                            implied_forward_price,
-                            katm_strike,
-                            strikes,
-                            option_prices,
-                            r_i,
-                            T_i,
-                            delta_K,
-                        )
-
-                        implied_variance_near_list.append(
-                            implied_variance_near)
-                        print(
-                            f"Implied Variance (Near Term) for {option_data_near['symbol']}:", implied_variance_near)
-                        # print(f"Interpolated Variance (Near Term) for {option_data['symbol']}:", interpolated_variance)
-
-                    # Calculate implied variance for next term
-                    for option_data_next in next_term_data:
-                        strikes = [
-                            float(bid[0]) for bid in option_data_next["order_book"]["bids"]]
-                        option_prices = [
-                            float(bid[1]) for bid in option_data_next["order_book"]["bids"]]
-
-                        T_i = option_data_next["time_to_maturity_years"]
-                        if T_i == 0:
-                            continue
-                        r_i = self.data_filter.calculate_implied_interest_rate(
-                            self,
-                            implied_forward_price,
-                            katm_strike,
-                            T_i
-                        )
-                        delta_K = [strikes[i + 1] - strikes[i]
-                                   for i in range(len(strikes) - 1)]
-
-                        next_term_implied_variance = self.preprocessing.calculate_implied_variance(
-                            implied_forward_price,
-                            katm_strike,
-                            strikes,
-                            option_prices,
-                            r_i,
-                            T_i,
-                            delta_K,
-                        )
-
-                        implied_variance_next_list.append(
-                            next_term_implied_variance)
-                        print(
-                            f"Implied Variance (Next Term) for {option_data_next['symbol']}:", next_term_implied_variance)
-
-                    # T_NEAR = [option_data_near["time_to_maturity_years"] for option_data_near in near_term_data]
-                    # T_NEXT = [option_data_next["time_to_maturity_years"] for option_data_next in next_term_data] * len(T_NEAR)
-                    # T_INDEX = [index_maturity] * len(T_NEAR)
-
-                    # omega_NEAR_t, omega_NEXT_t = self.preprocessing.interpolate_variance(T_NEAR, T_NEXT, T_INDEX)
-                    # print("Weights for Near Term:", omega_NEAR_t)
-                    # print("Weights for Next Term:", omega_NEXT_t)
-
-                    for implied_variance_near_value in implied_variance_near_list:
-                        omega_NEAR_t = 0.5
-                        sigma2_NEAR_t = implied_variance_near_value
-                        omega_NEXT_t = 0.5  # Replace with actual value
-                        sigma2_NEXT_t = 0.2  # Replace with actual value
-
-                        raw_implied_variance = self.preprocessing.calculate_raw_implied_variance(
-                            omega_NEAR_t, sigma2_NEAR_t, omega_NEXT_t, sigma2_NEXT_t
-                        )
-
-                        # Now you can use raw_implied_variance as needed
-                        print("Raw Implied Variance:", raw_implied_variance)
-
-                        sigma2_SMOOTH_t_minus_1 = raw_implied_variance
-
-                        print("Previous Smoothed Implied Variance:",
-                              sigma2_SMOOTH_t_minus_1)
-
-                        smoothed_implied_variance = self.preprocessing.calculate_ewma(
-                            lambda_param=0.5,
-                            sigma2_SMOOTH_t_minus_1=sigma2_SMOOTH_t_minus_1,
-                            sigma2_RAW_t=sigma2_NEAR_t,
-                        )
-                        print("EWMA:", smoothed_implied_variance)
-
-                        xVIV_value = self.preprocessing.calculate_xVIV(
-                            smoothed_implied_variance)
-                        print("xVIV Value:", xVIV_value)
-
-            else:
-                print("No valid bid-ask pairs found in the filtered data.")
-            # Save the processed and filtered data
-            self.data_saver.save_data(
-                filtered_data, filename="filtered_data.json")
-
-    def process_future_markets(self):
-        self.exchange.load_markets()
-        # Process future markets: fetch and save future order books
-        future_order_books_data = self.data_fetcher.fetch_future_order_books()
-        self.data_saver.save_data(future_order_books_data, self.exchange_name)
+        Parameters:
+        market_type (str): The type of the market (e.g., 'spot', 'future', 'option').
+        symbol (str): The trading pair symbol (e.g., 'BTC/USDT').
+        market (Dict[str, Any]): The market information.
+        """
+        print(f"Handling {market_type} market: {symbol}")
+        if market_type == "spot":
+            self.spot_market_handler.handle(symbol, market)
+        elif market_type == "future":
+            self.future_market_handler.handle(symbol, market)
+        elif market_type == "option":
+            self.option_market_handler.handle(symbol, market)
+        else:
+            print(f"Unhandled market type: {market_type}")

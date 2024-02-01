@@ -15,12 +15,13 @@ class Preprocessing:
         self.exchange_name = exchange_name
         self.symbol_filter = symbol_filter
         self.data_fetcher = DataFetcher(self.exchange_name)
-        self.market_filter = MarketFilter(
-            self.exchange_name, self.symbol_filter)
+        self.market_filter = MarketFilter(self.exchange_name, self.symbol_filter)
         self.data_saver = DataSaver()
         self.data_filter = DataFilter()
 
-    def select_otm_options(self, call_data, put_data, katm_strike, implied_forward_price, range_mult):
+    def select_otm_options(
+        self, call_data, put_data, katm_strike, implied_forward_price, range_mult
+    ):
         # Calculate Kmin and Kmax
         k_min = implied_forward_price / range_mult
         k_max = implied_forward_price * range_mult
@@ -36,20 +37,22 @@ class Preprocessing:
 
         # If both call and put options are selected for the same strike (KATM), take the average mid-price
         if call_strike == put_strike == katm_strike:
-            avg_mid_price = (call_data.get("mid_price", 0) +
-                             put_data.get("mid_price", 0)) / 2
+            avg_mid_price = (
+                call_data.get("mid_price", 0) + put_data.get("mid_price", 0)
+            ) / 2
             call_data["mid_price"] = put_data["mid_price"] = avg_mid_price
 
         return call_data, put_data
 
     def extract_expiry_and_filter_data(self, markets):
+        print(f"Total number of markets: {len(markets)}")
         expiry_counts = Counter()
         filtered_data = []
 
-        for market in markets[:100]:
+        for market in markets:
+            print(f"Processing market: {market}")
             symbol = market.get("symbol")
-            option_order_books_data = self.data_fetcher.fetch_option_order_books(
-                symbol)
+            option_order_books_data = self.data_fetcher.fetch_option_order_books(symbol)
 
             if not option_order_books_data:
                 print(f"No data fetched for symbol: {symbol}")
@@ -64,8 +67,7 @@ class Preprocessing:
                 "near_term" if time_to_maturity_years <= 30 / 365 else "next_term"
             )
 
-            self.data_saver.save_data(
-                option_order_books_data, self.exchange_name)
+            self.data_saver.save_data(option_order_books_data, self.exchange_name)
 
             expiry_counts[expiration_date] += 1
             filtered_data.append(option_order_books_data)
@@ -88,8 +90,7 @@ class Preprocessing:
     def filter_data_by_expiry(self, filtered_data, most_common_expiry):
         date_format = "%y%m%d"
         sorted_data = sorted(
-            filtered_data, key=lambda x: x.get(
-                "order_book", {}).get("bids", [])[0][0]
+            filtered_data, key=lambda x: x.get("order_book", {}).get("bids", [])[0][0]
         )
 
         grouped_data = {}
@@ -105,8 +106,7 @@ class Preprocessing:
 
         for expiry_date, data_list in grouped_data.items():
             sorted_data_by_strike = sorted(
-                data_list, key=lambda x: x.get(
-                    "order_book", {}).get("bids", [])[0][0]
+                data_list, key=lambda x: x.get("order_book", {}).get("bids", [])[0][0]
             )
             consecutive_bids = 0
 
@@ -135,8 +135,7 @@ class Preprocessing:
                     zip(bids, asks), key=lambda x: abs(float(x[0][0]) - float(x[1][0]))
                 )
 
-                diff_value = abs(
-                    float(diff_strike[0][0]) - float(diff_strike[1][0]))
+                diff_value = abs(float(diff_strike[0][0]) - float(diff_strike[1][0]))
 
                 if diff_value < min_diff_value:
                     min_diff_value = diff_value
@@ -167,19 +166,27 @@ class Preprocessing:
         return call_data, put_data, bids, asks
 
     def extract_time_to_maturity_near_term(self, filtered_data):
-        near_term_values = [data['time_to_maturity_years']
-                            for data in filtered_data if data['option_type'] == 'near_term']
+        near_term_values = [
+            data["time_to_maturity_years"]
+            for data in filtered_data
+            if data["option_type"] == "near_term"
+        ]
         # Return a list, even if empty
         return near_term_values if near_term_values else [0.0]
 
     def extract_time_to_maturity_next_term(self, filtered_data):
-        next_term_values = [data['time_to_maturity_years']
-                            for data in filtered_data if data['option_type'] == 'next_term']
+        next_term_values = [
+            data["time_to_maturity_years"]
+            for data in filtered_data
+            if data["option_type"] == "next_term"
+        ]
         return next_term_values if next_term_values else [0.0]
 
-    def calculate_implied_forward_price(self, call_data, put_data, bids, implied_forward_price):
+    def calculate_implied_forward_price(
+        self, call_data, put_data, bids, implied_forward_price
+    ):
         largest_strike = 0
-        min_mid_price_diff = float('inf')  # Initialize with a large value
+        min_mid_price_diff = float("inf")  # Initialize with a large value
 
         for bid in bids:
             if len(bid) >= 2:
@@ -192,7 +199,10 @@ class Preprocessing:
 
                 mid_price_diff = abs(call_price - put_price)
 
-                if bid_strike < implied_forward_price and mid_price_diff < min_mid_price_diff:
+                if (
+                    bid_strike < implied_forward_price
+                    and mid_price_diff < min_mid_price_diff
+                ):
                     largest_strike = bid_strike
                     min_mid_price_diff = mid_price_diff
 
@@ -207,8 +217,9 @@ class Preprocessing:
             put_price = float(put_data["order_book"]["asks"][0][1])
             forward_price = implied_forward_price
 
-            implied_forward_price = largest_strike + \
-                forward_price * (call_price - put_price)
+            implied_forward_price = largest_strike + forward_price * (
+                call_price - put_price
+            )
 
             print(f"Implied Forward Price: {implied_forward_price}")
 
@@ -231,22 +242,22 @@ class Preprocessing:
 
         # Log-linear extrapolation
         Kmin, Kmax = min(strikes), max(strikes)
-        extrapolated_strikes = np.logspace(
-            np.log10(Kmin), np.log10(Kmax), num=1000)
+        extrapolated_strikes = np.logspace(np.log10(Kmin), np.log10(Kmax), num=1000)
         extrapolated_option_prices = np.interp(
-            extrapolated_strikes, strikes, option_prices)
+            extrapolated_strikes, strikes, option_prices
+        )
 
         # Log-linear piece-wise interpolation
-        interpolated_strikes = np.logspace(
-            np.log10(Kmin), np.log10(Kmax), num=1000)
+        interpolated_strikes = np.logspace(np.log10(Kmin), np.log10(Kmax), num=1000)
         interpolated_option_prices = np.interp(
-            interpolated_strikes, strikes, option_prices)
+            interpolated_strikes, strikes, option_prices
+        )
 
         # Update strikes and option prices
-        strikes = np.concatenate(
-            [strikes, extrapolated_strikes, interpolated_strikes])
+        strikes = np.concatenate([strikes, extrapolated_strikes, interpolated_strikes])
         option_prices = np.concatenate(
-            [option_prices, extrapolated_option_prices, interpolated_option_prices])
+            [option_prices, extrapolated_option_prices, interpolated_option_prices]
+        )
 
         # Reshape arrays to have the same shape for broadcasting
         discount_factor = discount_factor.reshape((1,))
@@ -258,8 +269,7 @@ class Preprocessing:
         sum_term = np.sum(weights * option_prices)
 
         # Calculate the implied variance using the formula
-        implied_variance = (1 / T_i) * (2 * sum_term -
-                                        ((F_i / K_i_ATM) - 1) ** 2)
+        implied_variance = (1 / T_i) * (2 * sum_term - ((F_i / K_i_ATM) - 1) ** 2)
 
         return implied_variance
 
@@ -278,10 +288,18 @@ class Preprocessing:
         if len(T_NEAR) != len(T_NEXT) or len(T_NEXT) != len(T_INDEX):
             raise ValueError("Input lists must have the same length")
 
-        omega_NEAR_t = [(T_NEXT[i] - T_INDEX[i]) / (T_NEXT[i] - T_NEAR[i] +
-                                                    1e-9) / (T_INDEX[i] + 1e-9) for i in range(len(T_NEAR))]
-        omega_NEXT_t = [(T_INDEX[i] - T_NEAR[i]) / (T_NEXT[i] - T_NEAR[i] +
-                                                    1e-9) / (T_NEXT[i] + 1e-9) for i in range(len(T_NEAR))]
+        omega_NEAR_t = [
+            (T_NEXT[i] - T_INDEX[i])
+            / (T_NEXT[i] - T_NEAR[i] + 1e-9)
+            / (T_INDEX[i] + 1e-9)
+            for i in range(len(T_NEAR))
+        ]
+        omega_NEXT_t = [
+            (T_INDEX[i] - T_NEAR[i])
+            / (T_NEXT[i] - T_NEAR[i] + 1e-9)
+            / (T_NEXT[i] + 1e-9)
+            for i in range(len(T_NEAR))
+        ]
 
         return omega_NEAR_t, omega_NEXT_t
 
@@ -316,8 +334,7 @@ class Preprocessing:
         float: The smoothed implied variance at time t.
         """
         sigma2_SMOOTH_t = (
-            lambda_param * sigma2_SMOOTH_t_minus_1 +
-            (1 - lambda_param) * sigma2_RAW_t
+            lambda_param * sigma2_SMOOTH_t_minus_1 + (1 - lambda_param) * sigma2_RAW_t
         )
         return sigma2_SMOOTH_t
 
@@ -338,8 +355,7 @@ class Preprocessing:
         """
         ewma = lambda_param**tau * sigma2_SMOOTH_previous
         for i in range(tau):
-            ewma += (1 - lambda_param) * (lambda_param**i) * \
-                sigma2_RAW_history[i]
+            ewma += (1 - lambda_param) * (lambda_param**i) * sigma2_RAW_history[i]
         return ewma
 
     def calculate_lambda_with_half_life(self, tau):
