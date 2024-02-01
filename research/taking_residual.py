@@ -1,204 +1,123 @@
+# Import necessary libraries.
 import pymongo
-from datetime import datetime
+import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
-from decomposer import Decomposer
-import numpy as np
 import matplotlib.dates as mdates
+from research.decomposer import Decomposer  # Ensure you have this module or package installed, it's not standard.
 
-# Connect to MongoDB (replace with actual connection details)
-client = pymongo.MongoClient("mongodb://localhost:27017/")
-db = client["siwa_lite"]
-collection = db["ordi"]
+class TakingResidual:
+    # Initializer / Instance Attributes
+    def __init__(self):
+        # Connect to a local MongoDB instance and select database 'siwa_lite'.
+        client = pymongo.MongoClient("mongodb://localhost:27017/")
+        self.db = client["siwa_lite"]
 
-# Query the collection for documents (adjust the query as needed)
-pre_docs = list(collection.find({}))
+    # Method to retrieve and process time-series data from MongoDB.
+    def get_time_series_data(self):
+        # Access the 'ordi' collection in the database.
+        collection = self.db["ordi"]
 
+        # Fetch documents from the 'ordi' collection. Modify the query as needed.
+        pre_docs = list(collection.find({}))
 
-documents = {'timestamp': [],'fee': []}
+        # Initialize a dictionary to store processed data.
+        documents = {'timestamp': [], 'fee': []}
 
-# If you received raw dictionary-like objects and need to normalize datetime field:
-for doc in pre_docs:
-    for detail in doc.get('detail', []):  # Access the 'detail' field if it exists
-        if detail['type'] == 'inscribe-transfer':  # It can be filtered based on types
-            blocktime = detail['blocktime']  # Get the blocktime
-            fee = detail['fee']  # Get the fee value
-            satoshi = detail['satoshi']  # Get the fee value
-            documents['timestamp'].append(blocktime)
-            documents['fee'].append(fee*satoshi*0.00000001)
+        # Loop through the documents and extract needed data.
+        for doc in pre_docs:
+            for detail in doc.get('detail', []):  # Check if 'detail' key is in the doc
+                if detail['type'] == 'inscribe-transfer':  # Filter for a specific type of detail
+                    # Parse individual data fields.
+                    blocktime = detail['blocktime']
+                    fee = detail['fee']
+                    satoshi = detail['satoshi']
+                    # Append the processed fee calculation to document lists.
+                    documents['timestamp'].append(blocktime)
+                    documents['fee'].append(fee * satoshi * 1e-8)
 
-# Convert documents to DataFrame
-df = pd.DataFrame(documents)
-# Convert 'timestamp' to datetime if necessary
-df['timestamp'] = pd.to_datetime(df['timestamp'], unit='s')  # Adjust 'unit' as per requirement
+        # Convert the dictionary to a pandas DataFrame.
+        df = pd.DataFrame(documents)
+        # Convert 'timestamp' values to datetime objects.
+        df['timestamp'] = pd.to_datetime(df['timestamp'], unit='s')
 
-plt.figure(figsize=(10, 5))  # Set the figure size as desired
-plt.plot(df['timestamp'], df['fee'], marker='o')  # Using 'date' for x-axis, and 'o' as marker for data points
+        # Return the DataFrame for further processing.
+        return df
 
-# Set the x-axis major locator to display ticks for each day and the formatter for the dates
-plt.gca().xaxis.set_major_locator(mdates.DayLocator(interval=1))  # Show a tick for every day
-plt.gca().xaxis.set_major_formatter(mdates.DateFormatter('%Y-%m-%d'))  # Format the date
+    # Method to plot fee data as a time series.
+    def plot_fee(self, df):
+        plt.figure(figsize=(10, 5))
+        plt.plot(df['timestamp'], df['fee'])
 
-# Improve the layout of the dates on the x-axis
-plt.gcf().autofmt_xdate()  # Automatically adjusts the x-axis labels
+        # Configure x-axis to show dates.
+        plt.gca().xaxis.set_major_locator(mdates.DayLocator(interval=4))
+        plt.gca().xaxis.set_major_formatter(mdates.DateFormatter('%Y-%m-%d'))
 
-# Add some labels and title
-plt.title('Fee Over Time')
-plt.xlabel('Date')
-plt.ylabel('Fee')
+        # Auto-formatting for date labels on the x-axis.
+        plt.gcf().autofmt_xdate()
 
-# Optionally, configure the x-axis to format the date properly and/or to rotate the date labels for better readability
-plt.xticks(rotation=45)  # Rotate the x-axis labels if they overlap
-plt.tight_layout()  # Adjust the padding between and around the subplots for better fit
-plt.savefig('fee.png')
+        # Add labels and a title to the plot.
+        plt.title('Fee Over Time')
+        plt.xlabel('Timestamp')
+        plt.ylabel('Fee')
 
-# # Group by the date and calculate mean fee for each day
-# df_daily = df.groupby(df['timestamp'].dt.date).agg({'fee': 'mean'}).reset_index()
+        # Optionally, rotate x-axis date labels and adjust layout.
+        plt.xticks(rotation=45)
+        plt.tight_layout()
 
-# # Optionally, you can rename the columns if you want to reflect that these are daily records
-# df_daily.columns = ['date', 'mean_fee']
+        # Save the figure to a file.
+        plt.savefig('fee.png')
 
-# # If you still need a 'timestamp' column with time set to 00:00, you can convert the 'date' back to datetime
-# df_daily['date'] = pd.to_datetime(df_daily['date'])
+    # Method to get and plot residuals from time series decomposition.
+    def get_residual(self, df):
+        # Decompose the time series data.
+        ts_all = Decomposer(df, 'timestamp', 'fee')
+        decom = ts_all.decompose(period=48)
+        resid = decom.resid.dropna()
+        resid = pd.DataFrame(resid)
+        resid.reset_index(inplace=True)
+        # Plot the decomposition for visual analysis.
+        ts_all.plot_decomposition()
 
-# df_last60 = df_daily.iloc[-10*48:, :]
-# plt.figure(figsize=(10, 5))  # Set the figure size as desired
-# plt.plot(df_last60['date'], df_last60['mean_fee'], marker='o')  # Using 'date' for x-axis, and 'o' as marker for data points
+        # Return residual component of the decomposition.
+        return resid
 
-# # Set the x-axis major locator to display ticks for each day and the formatter for the dates
-# plt.gca().xaxis.set_major_locator(mdates.DayLocator(interval=1))  # Show a tick for every day
-# plt.gca().xaxis.set_major_formatter(mdates.DateFormatter('%Y-%m-%d'))  # Format the date
+    # Method to simulate a GBM path using the residuals from decomposition.
+    def get_gbm_path(self, resid):
+        gbm_path = [-10]  # Initialize GBM path with starting value of -10.
 
-# # Improve the layout of the dates on the x-axis
-# plt.gcf().autofmt_xdate()  # Automatically adjusts the x-axis labels
+        # Time step for increments.
+        dt = 1
 
-# # Add some labels and title
-# plt.title('Daily Mean Fee Over Time')
-# plt.xlabel('Date')
-# plt.ylabel('Mean Fee')
+        # Generate the GBM path.
+        for index, row in resid.iloc[1:5000].iterrows():  # Iterate over the data.
+            # Placeholder values for mean (mu) and volatility (sigma).
+            mu = 0.5
+            sigma = 1
+            S0 = gbm_path[-1]
 
-# # Optionally, configure the x-axis to format the date properly and/or to rotate the date labels for better readability
-# plt.xticks(rotation=45)  # Rotate the x-axis labels if they overlap
-# plt.tight_layout()  # Adjust the padding between and around the subplots for better fit
-# plt.savefig('mean_fee.png')
+            # Calculate the next mode point in the GBM path.
+            next_point = S0 * np.exp((mu - 0.5 * sigma**2) * dt + sigma * np.sqrt(dt) * row['resid'])
+            gbm_path.append(next_point)
 
-# Set the date as the index if required
-# df_daily = df_daily.set_index('date')
+        # Return the generated GBM path.
+        return gbm_path
 
-# Limit df to last ~10 days (10*48 rows) to visualise better
-# df_last60 = df.iloc[-10*48:, :]
-# ts = Decomposer(df_last60, 'timestamp', 'fee')
-# decom = ts.decompose(period=48)
-# ts.plot_decomposition()
+    # Method to plot the GBM path.
+    def plot_gbm_path(self, gbm_path):
+        plt.figure(figsize=(10, 6))
+        plt.plot(gbm_path, lw=1)
+        plt.title('Geometric Brownian Motion (GBM) Path')
+        plt.xlabel('Time Steps')
+        plt.ylabel('GBM Value')
+        plt.grid(True)
+        plt.savefig('final.png')
 
-# # Check ADF to see if time series is stationary
-# series, d = ts.check_stationarity(100)
-
-# # Check to see if residual after decomposition is stationary
-# resid = decom.resid.dropna()
-# resid = pd.DataFrame(resid)
-# resid['timestamp'] = resid.index
-# ts_resid = Decomposer(pd.DataFrame(resid), 'timestamp', 'resid')
-# series, d = ts_resid.check_stationarity(100)
-
-ts_all = Decomposer(df, 'timestamp', 'fee')
-decom = ts_all.decompose(period=48)
-resid = decom.resid.dropna()
-resid = pd.DataFrame(resid)
-resid.reset_index(inplace=True)
-ts_all.plot_decomposition()
-
-# def rolling_mean_variance(df, t, col):
-#     """
-#     Calculate rolling mean and variance with data manipulation:
-#     1. Adjust data mean to 0.
-#     2. Set max value to the absolute of the min value.
-
-#     Args:
-#     df (pandas.DataFrame): Input dataframe.
-#     t (int): Rolling window size.
-#     col (str): Column name on which to perform the operation.
-
-#     Returns:
-#     pandas.DataFrame: DataFrame with rolling mean and variance.
-#     """
-
-#     def manipulate_data(window):
-#         # Adjust the mean to 0
-#         window_mean = np.mean(window)
-#         window -= window_mean
-
-#         # Set max value to negative of the min value
-#         min_val = np.min(window)
-#         window[window >= abs(min_val)] = abs(min_val)
-
-#         # Calculate the mean and variance of the manipulated window
-#         mean_adjusted = np.mean(window)  # should be close to 0
-#         var_adjusted = np.var(window)
-        
-#         return mean_adjusted, var_adjusted
-
-#     # Store the results in lists
-#     rolling_means = []
-#     rolling_vars = []
-
-#     # Perform the rolling window calculation
-#     for start in range(len(df) - t + 1):
-#         end = start + t
-#         window = df[col][start:end]
-#         mean_adjusted, var_adjusted = manipulate_data(window)
-#         rolling_means.append(mean_adjusted)
-#         rolling_vars.append(var_adjusted)
-
-#     # Construct the resulting DataFrame
-#     result = pd.DataFrame({
-#         'rolling_mean': rolling_means,
-#         'rolling_var': rolling_vars
-#     }, index=df.index[t-1:])
-
-#     return result
-
-# res = rolling_mean_variance(resid, 48, 'resid')
-# resid_mean_var = res.join(resid)
-# resid = resid_mean_var
-# def get_delta(point, resid):
-#     if resid > .5:
-#         resid = .5
-#     elif resid < -.5:
-#         resid = -.5
-#     #res = resid*10
-#     res = point * (.03/5)*resid
-#     #print(res)
-#     return res#point*resid/(100*3)
-
-# print(resid)
-
-# Initialize the GBM path
-gbm_path = [resid['resid'].iloc[0]]  # Starting with the first 'resid' value
-gbm_path = [-10]  # Starting with 100 (arbitrary choice)
-
-# Time increment
-dt = 1
-
-# Iterate through the DataFrame to generate the GBM path
-for index, row in resid.iloc[1:5000].iterrows():  # Start from the second row
-    mu = 1/2 # row['rolling_var']/2000000  # sigma^2/2
-    sigma = 1 # np.sqrt(row['rolling_var'])/1000
-    S0 = gbm_path[-1]
-    
-    # print(mu, sigma)
-    # Random component
-    # Z = np.random.standard_normal()
-    
-    # Calculate the next point using the GBM formula
-    next_point = S0 * np.exp((mu - 0.5 * sigma**2) * dt + sigma * np.sqrt(dt) * row['resid'])
-    gbm_path.append(next_point)
-
-# Plot the GBM path
-plt.figure(figsize=(10, 6))
-plt.plot(gbm_path, lw=1)
-plt.title('Geometric Brownian Motion (GBM) Path')
-plt.xlabel('Time Steps')
-plt.ylabel('GBM Value')
-plt.grid(True)
-plt.savefig('final.png')
+# Main routine to execute when the script is run.
+if __name__ == '__main__':
+    tr = TakingResidual()  # Instantiate the class.
+    df = tr.get_time_series_data()  # Get and process data.
+    tr.plot_fee(df)  # Plot fee time series.
+    re = tr.get_residual(df)  # Get residuals from decomposition.
+    gp = tr.get_gbm_path(re)  # Generate GBM path.
+    tr.plot_gbm_path(gp)  # Plot GBM path.
