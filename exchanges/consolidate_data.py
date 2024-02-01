@@ -1,8 +1,8 @@
 import ccxt
 
-from exchanges.data_filter import DataFilter
-from exchanges.order_books import SPREAD_MIN, SPREAD_MULTIPLIER
-from exchanges.utils import handle_error
+from data_filter import DataFilter
+from order_books import SPREAD_MIN, SPREAD_MULTIPLIER
+from utils import handle_error
 
 
 class ConsolidateData:
@@ -12,7 +12,7 @@ class ConsolidateData:
 
     def standardize_data(self, symbol, order_book_data):
         try:
-            from exchanges.data_fetcher import DataFetcher
+            from data_fetcher import DataFetcher
 
             self.data_fetcher = DataFetcher(self.exchange)
             spot_price = self.data_fetcher.fetch_price(symbol, "last")

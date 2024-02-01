@@ -86,7 +86,9 @@ class ExchangeManager:
                 if implied_forward_price > 0:
                     print(f'IF {implied_forward_price}')
 
-                    katm_strike = 3.21
+                    katm_strike = self.preprocessing.calculate_katm_strike(
+                        call_data, put_data, implied_forward_price)
+
                     call_data, put_data = self.preprocessing.select_otm_options(
                         call_data,
                         put_data,

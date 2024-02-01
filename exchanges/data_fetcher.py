@@ -1,10 +1,10 @@
-from exchanges.consolidate_data import ConsolidateData
-from exchanges.constants.urls import BINANCE_API_URL
+from consolidate_data import ConsolidateData
+from constants.urls import BINANCE_API_URL
 import ccxt
 import requests
 import logging
 import time
-from exchanges.utils import handle_error
+from utils import handle_error
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)

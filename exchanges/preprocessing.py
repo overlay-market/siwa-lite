@@ -366,3 +366,20 @@ class Preprocessing:
         float: The calculated xVIV value.
         """
         return 100 * np.sqrt(sigma_smooth_t**2)
+
+    def calculate_katm_strike(self, strikes, option_prices):
+        """
+        Calculate the ATM strike based on the given strikes and option prices.
+
+        Parameters:
+        strikes (list of float): The strikes of the options.
+        option_prices (list of float): The prices of the options.
+
+        Returns:
+        float: The calculated ATM strike.
+        """
+        # Find the index of the minimum value in the option prices
+        min_index = np.argmin(option_prices)
+
+        # Return the strike at the index
+        return strikes[min_index]
