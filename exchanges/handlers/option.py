@@ -30,8 +30,10 @@ class OptionMarketHandler:
         for slice in market:
             order = self.data_fetcher.fetch_option_order_books(slice)
             raw_dara.append(order)
+
             if order is None or not order:
                 continue
+
             df = pd.DataFrame({
                 'symbol': [order['symbol']],
                 'bid_price': [order['order_book']['bids'][0][0]],
@@ -46,6 +48,10 @@ class OptionMarketHandler:
 
             })
 
+            time_to_maturity_years = df['time_to_maturity_years'].iloc[0]
+
+            # Add option_type column based on time_to_maturity_years
+            df["option_type"] = "near_term" if time_to_maturity_years <= 30 / 365 else "next_term"
             # Convert timestamp to readable format (if needed)
             df['datetime_readable'] = pd.to_datetime(df['timestamp'], unit='ms').astype(str)
 
@@ -53,6 +59,9 @@ class OptionMarketHandler:
             order_book_dict = df.to_dict(orient='records')
 
             order_books.append(order_book_dict)
+
+            with open('data.json', 'w') as f:
+                json.dump(order_books, f, indent=4)
 
     def _fetch_prices(self, symbol):
         # Fetch and return the spot price and the mark price for the symbol.
