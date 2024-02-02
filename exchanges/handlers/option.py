@@ -11,6 +11,11 @@ from constants.urls import BINANCE_API_URL
 import time
 from utils import handle_error
 import pandas as pd
+import math
+
+
+SPREAD_MULTIPLIER = 10
+SPREAD_MIN = 0.0005
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -25,6 +30,8 @@ class OptionMarketHandler:
         self.consolidate_data = ConsolidateData(self.exchange)
 
     def handle(self, symbol: str, market) -> None:
+
+        index_maturity = 30 / 365  # 30 days in terms of years
         order_books = []
         raw_dara = []
         for slice in market:
@@ -38,10 +45,32 @@ class OptionMarketHandler:
             ask_price = order['order_book']['asks'][0][0]
             mark_price = order['mark_price']
 
+            bid_spread = max(0, mark_price - bid_price)
+
+            ask_spread = max(0, ask_price - mark_price)
+            print(f"bid_spread {bid_spread}, ask_spread {ask_spread}")
+
+            # Calculate MAS (Maximum Allowed Spread)
+            mas = min(bid_spread, ask_spread) * SPREAD_MULTIPLIER
+
+            # Calculate GMS (Global Maximum Spread)
+            gms = SPREAD_MIN * SPREAD_MULTIPLIER
+
+            spread = bid_spread + ask_spread
+
             # Eliminate invalid quotes based on specified scenarios
-            if bid_price <= 0 or ask_price <= 0 or bid_price > ask_price or mark_price <= 0 or mark_price < bid_price or mark_price > ask_price:
-                # Skip this iteration if invalid quote
+            if (
+                    bid_price <= 0
+                    or ask_price <= 0
+                    or bid_price > ask_price
+                    or mark_price <= 0
+                    or mark_price < bid_price
+                    or mark_price > ask_price
+                    or spread > mas
+                    or spread > gms
+            ):
                 continue
+
 
             df = pd.DataFrame({
                 'symbol': [order['symbol']],
@@ -60,8 +89,10 @@ class OptionMarketHandler:
             time_to_maturity_years = df['time_to_maturity_years'].iloc[0]
 
             # Add option_type column based on time_to_maturity_years
-            df["option_type"] = "near_term" if time_to_maturity_years <= 30 / 365 else "next_term"
-            # Convert timestamp to readable format (if needed)
+            df["option_type"] = "near_term" if time_to_maturity_years <= index_maturity else "next_term"
+            df['mas'] = mas
+            df['gms'] = gms
+            df['spread'] = spread
             df['datetime_readable'] = pd.to_datetime(df['timestamp'], unit='ms').astype(str)
 
             # Convert DataFrame to dictionary
@@ -69,7 +100,7 @@ class OptionMarketHandler:
 
             order_books.append(order_book_dict)
 
-            with open('data_3.json', 'w') as f:
+            with open('data_1.json', 'w') as f:
                 json.dump(order_books, f, indent=4)
 
     def _fetch_prices(self, symbol):
