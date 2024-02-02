@@ -39,7 +39,7 @@ class OptionMarketHandler:
             mark_price = order['mark_price']
 
             # Eliminate invalid quotes based on specified scenarios
-            if bid_price <= 0 or ask_price <= 0 or bid_price > ask_price or mark_price <= 0:
+            if bid_price <= 0 or ask_price <= 0 or bid_price > ask_price or mark_price <= 0 or mark_price < bid_price or mark_price > ask_price:
                 # Skip this iteration if invalid quote
                 continue
 
