@@ -2,10 +2,10 @@ import ccxt
 import requests
 import logging
 import time
-
-from exchanges.consolidate_data import ConsolidateData
-from exchanges.constants.urls import BINANCE_API_URL
-from exchanges.utils import handle_error
+import json
+from consolidate_data import ConsolidateData
+from constants.urls import BINANCE_API_URL
+from utils import handle_error
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -16,23 +16,19 @@ class DataFetcher:
         self.exchange = exchange
         self.consolidate_data = ConsolidateData(self.exchange)
 
-    def _fetch_data_with_error_handling(self, fetch_function, *args, error_message):
+    def _fetch_data_with_error_handling(self, fetch_function, *args):
         try:
             return fetch_function(*args)
         except (ccxt.NetworkError, ccxt.ExchangeError) as e:
-            handle_error(error_message, e)
             return None
 
-    def fetch_option_order_books(self, symbol, limit=100):
-        error_message = f"Error fetching order book for symbol '{symbol}'"
-        response = self._fetch_data_with_error_handling(
-            self.exchange.fetch_order_book, symbol, limit
-        )
-        return (
-            self.consolidate_data.standardize_data(symbol, response)
-            if response
-            else None
-        )
+    def fetch_option_order_books(self, symbol):
+        response = self.exchange.fetch_order_book(symbol)
+        # return response
+        # st = self.consolidate_data.standardize_data(symbol, response)
+        # with open('order_book.json', 'w') as f:
+        #     json.dump(st, f)
+
 
     def fetch_binance_option_symbols(self):
         try:
@@ -71,9 +67,8 @@ class DataFetcher:
         ]
 
     def fetch_price(self, symbol, price_type):
-        return self._fetch_data_with_error_handling(
-            self.exchange.fetch_ticker, symbol
-        ).get(price_type)
+        return self.exchange.fetch_ticker(symbol)
+
 
     def fetch_mark_price(self, symbol):
         mark_price = self.fetch_price(symbol, "markPrice") or self.fetch_price(

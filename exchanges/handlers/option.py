@@ -2,15 +2,17 @@ import json
 from typing import Dict, Any
 
 from preprocessing import Preprocessing
+from data_fetcher import DataFetcher
 
 
 class OptionMarketHandler:
     def __init__(self, exchange, market_types):
         self.exchange = exchange
         self.market_types = market_types
+        self.data_fetcher = DataFetcher(self.exchange)
         self.preprocessing = Preprocessing(self.exchange, self.market_types)
 
-    def handle(self, symbol: str, market: Dict[str, Any]) -> None:
+    def handle(self, symbol: str, market) -> None:
         """
         Handles a market from an exchange.
 
@@ -31,16 +33,17 @@ class OptionMarketHandler:
             "exchange": "binance",
             "market_type": "option"
         }
-        """
-        with open("option_data.json", "w") as f:
-            json.dump(market, f)
-        (
-            expiry_counts,
-            filtered_data,
-        ) = self.preprocessing.extract_expiry_and_filter_data(market)
-
-        print("Filtered Data:", filtered_data)
-        print("Expiry Counts:", expiry_counts)
+        # """
+        #
+        # with open('list.json', 'w') as f:
+        #    json.dump(market, f)
+        x = []
+        for i in market:
+            print(i)
+            test = self.data_fetcher.fetch_option_order_books(i)
+            x.append(test)
+        with open('list.json', 'w') as f:
+            json.dump(x, f)
 
     # def process_option_markets(self, option_markets):
     #

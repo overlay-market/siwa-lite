@@ -2,5 +2,5 @@ from exchange_manager import ExchangeManager
 
 
 class OKXManager(ExchangeManager):
-    def __init__(self, symbol_filter, market_type):
-        super().__init__("okx", symbol_filter, market_type)
+    def __init__(self, pairs_to_load, market_types):
+        super().__init__("okx", pairs_to_load, market_types)

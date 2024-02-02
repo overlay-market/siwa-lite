@@ -1,7 +1,9 @@
+import json
+
 import ccxt
-from exchanges.data_filter import DataFilter
-from exchanges.order_books import SPREAD_MIN, SPREAD_MULTIPLIER
-from exchanges.utils import handle_error
+from data_filter import DataFilter
+from order_books import SPREAD_MIN, SPREAD_MULTIPLIER
+from utils import handle_error
 
 
 class ConsolidateData:
@@ -13,7 +15,7 @@ class ConsolidateData:
 
     def standardize_data(self, symbol, order_book_data):
         try:
-            from exchanges.data_fetcher import DataFetcher
+            from data_fetcher import DataFetcher
 
             self.data_fetcher = DataFetcher(
                 self.exchange
@@ -21,6 +23,10 @@ class ConsolidateData:
 
             # Fetch the spot price and mark price for the given symbol.
             spot_price, mark_price = self._fetch_prices(symbol)
+            with open('spot_price.json', 'w') as f:
+                json.dump(spot_price, f)
+            print(f'Spot {spot_price}')
+            print(f'Mark {mark_price}')
 
             # Return empty if prices are not available.
             if not spot_price or not mark_price:
@@ -47,9 +53,7 @@ class ConsolidateData:
                 "current_spot_price": spot_price,
                 "mark_price": float(selected_option_price),
                 "mid_price": mid_price,
-                "time_to_maturity_years": self.data_filter.calculate_time_to_maturity(
-                    symbol, order_book_data
-                ),
+                # "time_to_maturity_years": 2.3
             }
 
             # Check if the quote is valid and return the data, else return empty.

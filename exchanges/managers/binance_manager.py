@@ -2,5 +2,5 @@ from exchange_manager import ExchangeManager
 
 
 class BinanceManager(ExchangeManager):
-    def __init__(self, symbol_filter, market_type):
-        super().__init__("binance", symbol_filter, market_type)
+    def __init__(self, pairs_to_load, market_types):
+        super().__init__("binance", pairs_to_load, market_types)

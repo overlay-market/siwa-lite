@@ -46,7 +46,7 @@ class ExchangeManager:
         self.exchange.load_markets()
 
         processed_count = 0
-        selected_pairs = {}
+        selected_pairs = []
         for market_symbol, market in self.exchange.markets.items():
             if DEBUG_LIMIT and processed_count >= DEBUG_LIMIT:
                 break  # Stop processing if the debug limit is reached
@@ -56,13 +56,13 @@ class ExchangeManager:
                 for pair_prefix in self.pairs_to_load
             ):
                 if market["type"] in self.market_types:
-                    selected_pairs[market_symbol] = market
+                    selected_pairs.append(market_symbol)
                     processed_count += 1
 
         self.handle_market_type(self.market_types, self.pairs_to_load, selected_pairs)
 
     def handle_market_type(
-        self, market_type: str, symbol: str, market: Dict[str, Any]
+        self, market_type: str, symbol: str, market
     ) -> None:
         """
         Route the market to a specific handler function based on its type.
