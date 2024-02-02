@@ -39,6 +39,7 @@ last_document = collection.find_one({}, sort=[('_id', pymongo.DESCENDING)])
 
 # Determine the block height from which to start processing records.
 start_block_height = brc20_ticker_info.json()["data"]["deployHeight"]
+# start_block_height = 805002
 # If the last document's height is greater than the deploy height, update the start block height.
 if last_document["height"] > brc20_ticker_info.json()["data"]["deployHeight"]:
     start_block_height = last_document["height"]
@@ -55,8 +56,9 @@ def store_db():
             # Query the BRC20 ticker history for the current block height and event type.
             respond = unisat_api.get_brc20_ticker_history(brc20_list[0], height, event_type, 0, 100).json()["data"]
             # If the response is not empty, insert the data into the MongoDB collection.
-            if respond['detail'] is not []:
-                collection.insert_one(respond)
+            if not respond or not respond['detail']:
+                continue
+            collection.insert_one(respond)
 
 # Call the store_db function to start storing records into the database.
 store_db()
