@@ -14,12 +14,12 @@ def main():
     try:
         # binance_option = BinanceManager(exchange_name='binance', symbol_filter=None, market_type="option")
         # binance_future = BinanceManager(exchange_name='binance', symbol_filter="BTC", market_type="future")
-        deribit_option = DeribitManager(
-            pairs_to_load="BTC/USD:BTC", market_types="option"
-        )
-        # deribit_future = DeribitManager(
-        #     symbol_filter="BTC/USD:BTC", market_type="future"
+        # deribit_option = DeribitManager(
+        #     pairs_to_load="BTC/USD:BTC", market_types="option"
         # )
+        deribit_future = DeribitManager(
+            pairs_to_load="BTC/USD:BTC", market_types="future"
+        )
         # okx_option = OKXManager(symbol_filter="BTC/USD:BTC", market_type="option")
         # okx_future = OKXManager(symbol_filter="BTC", market_type="future")
         # bybit_option = BybitManager(symbol_filter="BTC/USDC:USDC", market_type="option")
@@ -29,8 +29,8 @@ def main():
         for manager in [
             # binance_option,
             # binance_future,
-            deribit_option,
-            # deribit_future,
+            # deribit_option,
+            deribit_future,
             # okx_option,
             # okx_future,
             # bybit_option,

@@ -23,10 +23,8 @@ class ConsolidateData:
 
             # Fetch the spot price and mark price for the given symbol.
             spot_price, mark_price = self._fetch_prices(symbol)
-            with open('spot_price.json', 'w') as f:
+            with open("spot_price.json", "w") as f:
                 json.dump(spot_price, f)
-            print(f'Spot {spot_price}')
-            print(f'Mark {mark_price}')
 
             # Return empty if prices are not available.
             if not spot_price or not mark_price:
@@ -46,6 +44,10 @@ class ConsolidateData:
             selected_option_price = min(asks, key=lambda x: float(x[0]) - max_bid)[0]
             mid_price = (max_bid + min_ask) / 2  # Calculate the mid-price.
 
+            time_to_maturity = self.data_filter.calculate_time_to_maturity(
+                order_book_data
+            )
+
             # Prepare the standardized data structure.
             standardized_data = {
                 "symbol": symbol,
@@ -53,11 +55,12 @@ class ConsolidateData:
                 "current_spot_price": spot_price,
                 "mark_price": float(selected_option_price),
                 "mid_price": mid_price,
-                # "time_to_maturity_years": 2.3
+                "time_to_maturity_years": time_to_maturity,
             }
 
             # Check if the quote is valid and return the data, else return empty.
-            return standardized_data if self._is_valid_quote(standardized_data) else {}
+            # return standardized_data if self._is_valid_quote(standardized_data) else {}
+            return standardized_data
 
         except (ccxt.NetworkError, ccxt.ExchangeError) as e:
             # Handle any network or exchange-related errors.

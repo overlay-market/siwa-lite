@@ -22,11 +22,13 @@ class ExchangeManager:
             pairs_to_load
         )  # Filter criteria for symbols (e.g., 'BTC/USDT' or ['BTC/USDT', 'ETH/USDT'])
         self.exchange_id = exchange_id  # Name of the exchange (e.g., 'binance')
-        self.market_types = market_types # Type of market option or future or spot
+        self.market_types = market_types  # Type of market option or future or spot
         self.exchange = getattr(ccxt, self.exchange_id)()
         self.spot_market_handler = SpotMarketHandler()
-        self.future_market_handler = FutureMarketHandler()
-        self.option_market_handler = OptionMarketHandler(self.exchange, self.market_types)
+        self.future_market_handler = FutureMarketHandler(self.exchange, self.market_types)
+        self.option_market_handler = OptionMarketHandler(
+            self.exchange, self.market_types
+        )
         self.preprocessing = Preprocessing(self.exchange, self.market_types)
 
     def _ensure_list(self, item):
@@ -61,9 +63,7 @@ class ExchangeManager:
 
         self.handle_market_type(self.market_types, self.pairs_to_load, selected_pairs)
 
-    def handle_market_type(
-        self, market_type: str, symbol: str, market
-    ) -> None:
+    def handle_market_type(self, market_type: str, symbol: str, market) -> None:
         """
         Route the market to a specific handler function based on its type.
 

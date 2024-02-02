@@ -3,6 +3,17 @@ from typing import Dict, Any
 
 from preprocessing import Preprocessing
 from data_fetcher import DataFetcher
+from consolidate_data import ConsolidateData
+import ccxt
+import logging
+import requests
+from constants.urls import BINANCE_API_URL
+import time
+from utils import handle_error
+import pandas as pd
+
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
 
 
 class OptionMarketHandler:
@@ -11,39 +22,103 @@ class OptionMarketHandler:
         self.market_types = market_types
         self.data_fetcher = DataFetcher(self.exchange)
         self.preprocessing = Preprocessing(self.exchange, self.market_types)
+        self.consolidate_data = ConsolidateData(self.exchange)
 
     def handle(self, symbol: str, market) -> None:
-        """
-        Handles a market from an exchange.
+        order_books = []
+        raw_dara = []
+        for slice in market:
+            order = self.data_fetcher.fetch_option_order_books(slice)
+            raw_dara.append(order)
+            if order is None or not order:
+                continue
+            df = pd.DataFrame({
+                'symbol': [order['symbol']],
+                'bid_price': [order['order_book']['bids'][0][0]],
+                'ask_price': [order['order_book']['asks'][0][0]],
+                # 'mark_price': mark_price,
+                'timestamp': [order['order_book']['timestamp']],
+                'datetime': [order['order_book']['datetime']],
+                # 'underlying_price': [order['current_spot_price']['underlying_price']],
+                'time_to_maturity_years': [order['time_to_maturity_years']],
+                'mid_price': [order['mid_price']],
+                'mark_price': [order['mark_price']],
 
-        :param symbol: Symbol of the market like BTC/USD
-        :param market: Market data like: {
-            "symbol": "BTC/USD",
-            "price": 10000,
-            "timestamp": 123456789,
-            "option_type": "call",
-            "strike_price": 10000,
-            "expiration_date": 123456789,
-            "bid_price": 100,
-            "ask_price": 200,
-            "bid_amount": 1,
-            "ask_amount": 1,
-            "base_currency": "BTC",
-            "quote_currency": "USD",
-            "exchange": "binance",
-            "market_type": "option"
-        }
-        # """
-        #
-        # with open('list.json', 'w') as f:
-        #    json.dump(market, f)
-        x = []
-        for i in market:
-            print(i)
-            test = self.data_fetcher.fetch_option_order_books(i)
-            x.append(test)
-        with open('list.json', 'w') as f:
-            json.dump(x, f)
+            })
+
+            # Convert timestamp to readable format (if needed)
+            df['datetime_readable'] = pd.to_datetime(df['timestamp'], unit='ms').astype(str)
+
+            # Convert DataFrame to dictionary
+            order_book_dict = df.to_dict(orient='records')
+
+            order_books.append(order_book_dict)
+
+    def _fetch_prices(self, symbol):
+        # Fetch and return the spot price and the mark price for the symbol.
+        spot_price = self.data_fetcher.fetch_price(symbol, "last")
+        mark_price = self.data_fetcher.fetch_mark_price(symbol)
+        return spot_price, mark_price
+
+    # def _fetch_data_with_error_handling(self, fetch_function, *args):
+    #     try:
+    #         return fetch_function(*args)
+    #     except (ccxt.NetworkError, ccxt.ExchangeError) as e:
+    #         return None
+    #
+    # def fetch_option_order_books(self, symbol):
+    #     response = self.exchange.fetch_order_book(symbol)
+    #     st = self.consolidate_data.standardize_data(symbol, response)
+    #     return st
+    #
+    # def fetch_binance_option_symbols(self):
+    #     try:
+    #         response = requests.get(BINANCE_API_URL)
+    #         if response.status_code != 200:
+    #             logger.error(f"Error: {response.status_code}")
+    #             return []
+    #
+    #         exchange_info = response.json()
+    #         for symbol_info in exchange_info.get("optionSymbols", []):
+    #             if "BTC" in symbol_info.get("symbol"):
+    #                 symbol = symbol_info.get("symbol")
+    #                 data = self.fetch_option_order_books(symbol)
+    #                 if data:
+    #                     self.save_data_to_file("binance", data)
+    #                     time.sleep(5)
+    #
+    #         return []
+    #
+    #     except requests.RequestException as e:
+    #         handle_error("Error fetching Binance option symbols", e)
+    #         return []
+    #
+    # def fetch_future_order_books(self, limit=100):
+    #     future_markets = self._filter_future_markets()
+    #     for symbol in future_markets:
+    #         standardized_data = self.fetch_option_order_books(symbol, limit)
+    #         if standardized_data:
+    #             self.save_data_to_file(self.exchange.name, standardized_data)
+    #
+    # def _filter_future_markets(self):
+    #     return [
+    #         symbol
+    #         for symbol, market in self.exchange.markets.items()
+    #         if market.get("future", False)
+    #     ]
+    #
+    # def fetch_price(self, symbol, price_type):
+    #     return self.exchange.fetch_ticker(symbol)
+    #
+    # def fetch_mark_price(self, symbol):
+    #     mark_price = self.fetch_price(symbol, "markPrice") or self.fetch_price(
+    #         symbol, "mark_price"
+    #     )
+    #     if mark_price is not None and mark_price != float("inf"):
+    #         return mark_price
+    #
+    #     bid, ask = self.fetch_price(symbol, "bid"), self.fetch_price(symbol, "ask")
+    #     return (bid + ask) / 2 if bid and ask else None
 
     # def process_option_markets(self, option_markets):
     #

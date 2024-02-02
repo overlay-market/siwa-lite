@@ -24,11 +24,8 @@ class DataFetcher:
 
     def fetch_option_order_books(self, symbol):
         response = self.exchange.fetch_order_book(symbol)
-        # return response
-        # st = self.consolidate_data.standardize_data(symbol, response)
-        # with open('order_book.json', 'w') as f:
-        #     json.dump(st, f)
-
+        st = self.consolidate_data.standardize_data(symbol, response)
+        return st
 
     def fetch_binance_option_symbols(self):
         try:
@@ -68,7 +65,6 @@ class DataFetcher:
 
     def fetch_price(self, symbol, price_type):
         return self.exchange.fetch_ticker(symbol)
-
 
     def fetch_mark_price(self, symbol):
         mark_price = self.fetch_price(symbol, "markPrice") or self.fetch_price(
