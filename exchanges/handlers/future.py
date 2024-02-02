@@ -27,19 +27,14 @@ class FutureMarketHandler:
                 'ask_price': [standardized_data['order_book']['asks'][0][0]],
                 'timestamp': [standardized_data['order_book']['timestamp']],
                 'datetime': [standardized_data['order_book']['datetime']],
-                # 'time_to_maturity_years': [order['time_to_maturity_years']],
+                'time_to_maturity_years': [standardized_data['time_to_maturity_years']],
                 'mid_price': [standardized_data['mid_price']],
                 'mark_price': [standardized_data['mark_price']],
 
             })
 
-
-            # # Convert timestamp to readable format (if needed)
-            # df['time_to_maturity_years'] = pd.to_datetime(df['timestamp'], unit='ms').astype(str)
-
             # Convert DataFrame to dictionary
             yield_curve = self.calculate_yield_curve(df.to_dict(orient='records'))
-            print(yield_curve)
             df['yield_curve'] = [yield_curve]
             order_book_dict = df.to_dict(orient='records')
 
@@ -68,7 +63,7 @@ class FutureMarketHandler:
                 symbol = option_data.get("symbol")
                 forward_price = option_data.get("mark_price")
                 spot_price = 3.4
-                time_to_maturity_years = 0.0011184415228944697
+                time_to_maturity_years = option_data.get("time_to_maturity_years")
 
                 if (
                     symbol
