@@ -34,6 +34,15 @@ class OptionMarketHandler:
             if order is None or not order:
                 continue
 
+            bid_price = order['order_book']['bids'][0][0]
+            ask_price = order['order_book']['asks'][0][0]
+            mark_price = order['mark_price']
+
+            # Eliminate invalid quotes based on specified scenarios
+            if bid_price <= 0 or ask_price <= 0 or bid_price > ask_price or mark_price <= 0:
+                # Skip this iteration if invalid quote
+                continue
+
             df = pd.DataFrame({
                 'symbol': [order['symbol']],
                 'bid_price': [order['order_book']['bids'][0][0]],
@@ -60,7 +69,7 @@ class OptionMarketHandler:
 
             order_books.append(order_book_dict)
 
-            with open('data.json', 'w') as f:
+            with open('data_3.json', 'w') as f:
                 json.dump(order_books, f, indent=4)
 
     def _fetch_prices(self, symbol):
