@@ -36,7 +36,8 @@ class ExchangeManager:
         Convert item to a list if it's not already.
         Examples:
         _ensure_list('BTC/USDT') -> ['BTC/USDT']
-        so we just convert "BTC/USDT" to ['BTC/USDT'] so that we can iterate over it later
+        so we just convert "BTC/USDT" to ['BTC/USDT']
+        so that we can iterate over it later
         """
 
         return [item] if isinstance(item, str) else item
