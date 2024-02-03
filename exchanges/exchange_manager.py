@@ -1,9 +1,9 @@
-import json
-from typing import List, Dict, Any
+from typing import Dict, Any
 
 import ccxt
 
 from constants.utils import DEBUG_LIMIT
+from handlers.merge import MergeMarketHandler
 from preprocessing import Preprocessing
 from handlers.future import FutureMarketHandler
 from handlers.option import OptionMarketHandler
@@ -25,13 +25,17 @@ class ExchangeManager:
         self.market_types = market_types  # Type of market option or future or spot
         self.exchange = getattr(ccxt, self.exchange_id)()
         self.spot_market_handler = SpotMarketHandler()
-        self.future_market_handler = FutureMarketHandler(self.exchange, self.market_types)
+        self.future_market_handler = FutureMarketHandler(
+            self.exchange, self.market_types
+        )
         self.option_market_handler = OptionMarketHandler(
             self.exchange, self.market_types
         )
+        self.merge_market_handler = MergeMarketHandler()
         self.preprocessing = Preprocessing(self.exchange, self.market_types)
 
-    def _ensure_list(self, item):
+    @staticmethod
+    def _ensure_list(item):
         """
         Convert item to a list if it's not already.
         Examples:
@@ -73,12 +77,21 @@ class ExchangeManager:
         symbol (str): The trading pair symbol (e.g., 'BTC/USDT').
         market (Dict[str, Any]): The market information.
         """
+        option = None
+        future = None
+
         print(f"Handling {market_type} market: {symbol}")
         if market_type == "spot":
             self.spot_market_handler.handle(symbol, market)
         elif market_type == "future":
-            self.future_market_handler.handle(symbol, market)
+            future = self.future_market_handler.handle(symbol, market)
         elif market_type == "option":
-            self.option_market_handler.handle(symbol, market)
+            option = self.option_market_handler.handle(symbol, market)
         else:
             print(f"Unhandled market type: {market_type}")
+
+        # Call the merge handler only if both option and future are defined
+        # print(f"Option: {option}")
+        # print(f"Future {future}")
+        # if option and future:
+        #     self.merge_market_handler.handle(option, future)

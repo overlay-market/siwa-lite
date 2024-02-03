@@ -6,6 +6,7 @@ from utils import handle_error
 import math
 import numpy as np
 
+
 class FutureMarketHandler:
 
     def __init__(self, exchange, market_types):
@@ -13,36 +14,40 @@ class FutureMarketHandler:
         self.market_types = market_types
         self.data_fetcher = DataFetcher(exchange)
 
-    def handle(self, symbol: str, market: Dict[str, Any]) -> None:
-        self.fetch_future_order_books(market)
+    def handle(self, symbol: str, market: Dict[str, Any]):
+        return self.fetch_future_order_books(market)
 
     def fetch_future_order_books(self, market):
         order_filtered = []
         for order in market:
             standardized_data = self.data_fetcher.fetch_option_order_books(order)
-            df = pd.DataFrame({
-                'symbol': [standardized_data['symbol']],
-                'bid_price': [standardized_data['order_book']['bids'][0][0]],
-                'ask_price': [standardized_data['order_book']['asks'][0][0]],
-                'timestamp': [standardized_data['order_book']['timestamp']],
-                'datetime': [standardized_data['order_book']['datetime']],
-                'time_to_maturity_years': [standardized_data['time_to_maturity_years']],
-                'mid_price': [standardized_data['mid_price']],
-                'mark_price': [standardized_data['mark_price']],
-            })
+            df = pd.DataFrame(
+                {
+                    "symbol": [standardized_data["symbol"]],
+                    "bid_price": [standardized_data["order_book"]["bids"][0][0]],
+                    "ask_price": [standardized_data["order_book"]["asks"][0][0]],
+                    "timestamp": [standardized_data["order_book"]["timestamp"]],
+                    "datetime": [standardized_data["order_book"]["datetime"]],
+                    "time_to_maturity_years": [
+                        standardized_data["time_to_maturity_years"]
+                    ],
+                    "mid_price": [standardized_data["mid_price"]],
+                    "mark_price": [standardized_data["mark_price"]],
+                }
+            )
 
             # Convert DataFrame to dictionary
-            yield_curve = self.calculate_yield_curve(df.to_dict(orient='records'))
-            df['yield_curve'] = [yield_curve]
-            order_book_dict = df.to_dict(orient='records')
+            yield_curve = self.calculate_yield_curve(df.to_dict(orient="records"))
+            df["yield_curve"] = [yield_curve]
+            order_book_dict = df.to_dict(orient="records")
+            order_book_dict= order_book_dict[0]
 
             order_filtered.append(order_book_dict)
 
-        with open("future_order_books.json", "w") as f:
-            json.dump(order_filtered, f, indent=4)
+        return order_filtered
 
     def calculate_implied_interest_rate(
-            self, forward_price, spot_price, time_to_maturity_years
+        self, forward_price, spot_price, time_to_maturity_years
     ):
         try:
             return (
@@ -59,11 +64,11 @@ class FutureMarketHandler:
 
         for symbol, rates in yield_curve.items():
             # Sort rates based on time_to_maturity_years
-            sorted_rates = sorted(rates, key=lambda x: x['time_to_maturity_years'])
+            sorted_rates = sorted(rates, key=lambda x: x["time_to_maturity_years"])
 
             # Extract time_to_maturity_years and implied_interest_rates
-            tenors = [rate['time_to_maturity_years'] for rate in sorted_rates]
-            rates = [rate['implied_interest_rate'] for rate in sorted_rates]
+            tenors = [rate["time_to_maturity_years"] for rate in sorted_rates]
+            rates = [rate["implied_interest_rate"] for rate in sorted_rates]
 
             # Perform linear interpolation
             interpolated_rates = np.interp(
@@ -86,7 +91,6 @@ class FutureMarketHandler:
                 symbol = option_data.get("symbol")
                 forward_price = option_data.get("mark_price")
                 spot_price = 3.24  # TODO: Get spot price
-                print(spot_price)
                 time_to_maturity_years = option_data.get("time_to_maturity_years")
 
                 if (
@@ -101,11 +105,12 @@ class FutureMarketHandler:
 
                     if symbol not in yield_curve:
                         yield_curve[symbol] = []
-                    yield_curve[symbol].append({
-                        'implied_interest_rate': implied_interest_rate,
-                        'time_to_maturity_years': time_to_maturity_years
-                    })
-                    print(implied_interest_rate)
+                    yield_curve[symbol].append(
+                        {
+                            "implied_interest_rate": implied_interest_rate,
+                            "time_to_maturity_years": time_to_maturity_years,
+                        }
+                    )
 
             return self.interpolate_yield_curve(yield_curve)
 

@@ -23,8 +23,6 @@ class ConsolidateData:
 
             # Fetch the spot price and mark price for the given symbol.
             spot_price, mark_price = self._fetch_prices(symbol)
-            with open("spot_price.json", "w") as f:
-                json.dump(spot_price, f)
 
             # Return empty if prices are not available.
             if not spot_price or not mark_price:
