@@ -3,3 +3,4 @@ exchanges/constants/.env
 /venv
 __pycache__/
 .env
+exchanges/*.json

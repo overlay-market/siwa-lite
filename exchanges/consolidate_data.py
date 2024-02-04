@@ -1,5 +1,3 @@
-import json
-
 import ccxt
 from data_filter import DataFilter
 from order_books import SPREAD_MIN, SPREAD_MULTIPLIER

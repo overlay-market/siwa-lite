@@ -1,97 +1,84 @@
-from typing import Dict, Any
-
+from typing import List, Any, Dict
 import ccxt
+import logging
 
 from constants.utils import DEBUG_LIMIT
 from handlers.merge import MergeMarketHandler
 from preprocessing import Preprocessing
 from handlers.future import FutureMarketHandler
 from handlers.option import OptionMarketHandler
-from handlers.spot import SpotMarketHandler
 
-import logging
-
-# Configure logging to display informational messages
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 
 class ExchangeManager:
-    def __init__(self, exchange_id, pairs_to_load, market_types):
-        self.pairs_to_load = self._ensure_list(
-            pairs_to_load
-        )  # Filter criteria for symbols (e.g., 'BTC/USDT' or ['BTC/USDT', 'ETH/USDT'])
-        self.exchange_id = exchange_id  # Name of the exchange (e.g., 'binance')
-        self.market_types = market_types  # Type of market option or future or spot
-        self.exchange = getattr(ccxt, self.exchange_id)()
-        self.spot_market_handler = SpotMarketHandler()
-        self.future_market_handler = FutureMarketHandler(
-            self.exchange, self.market_types
-        )
-        self.option_market_handler = OptionMarketHandler(
-            self.exchange, self.market_types
-        )
+    def __init__(
+        self, exchange_id: str, pairs_to_load: List[str], market_types: List[str]
+    ):
+        self.pairs_to_load = self._ensure_list(pairs_to_load)
+        self.exchange_id = exchange_id
+        self.market_types = market_types
+        self.exchange = getattr(ccxt, exchange_id)()
+        self.future_market_handler = FutureMarketHandler(self.exchange, market_types)
+        self.option_market_handler = OptionMarketHandler(self.exchange, market_types)
         self.merge_market_handler = MergeMarketHandler()
-        self.preprocessing = Preprocessing(self.exchange, self.market_types)
+        self.preprocessing = Preprocessing(self.exchange, market_types)
+        self.future_results = None
+        self.option_results = None
 
     @staticmethod
-    def _ensure_list(item):
-        """
-        Convert item to a list if it's not already.
-        Examples:
-        _ensure_list('BTC/USDT') -> ['BTC/USDT']
-        so we just convert "BTC/USDT" to ['BTC/USDT']
-        so that we can iterate over it later
-        """
-
+    def _ensure_list(item: Any) -> List[str]:
+        """Ensure the input item is a list."""
         return [item] if isinstance(item, str) else item
 
-    def load_specific_pairs(self) -> Dict[str, Any]:
-        if not self.exchange:
-            return {}
-
-        self.exchange.load_markets()
-
-        processed_count = 0
-        selected_pairs = []
-        for market_symbol, market in self.exchange.markets.items():
-            if DEBUG_LIMIT and processed_count >= DEBUG_LIMIT:
-                break  # Stop processing if the debug limit is reached
-
-            if any(
-                market_symbol.startswith(pair_prefix)
-                for pair_prefix in self.pairs_to_load
-            ):
-                if market["type"] in self.market_types:
-                    selected_pairs.append(market_symbol)
-                    processed_count += 1
-
-        self.handle_market_type(self.market_types, self.pairs_to_load, selected_pairs)
-
-    def handle_market_type(self, market_type: str, symbol: str, market) -> None:
+    def load_specific_pairs(self) -> None:
+        """Load and process specific pairs based on predefined filters.
+        Output will look like:
+        {
+            "future": ["BTC-26MAR21", "BTC-25JUN21", ...],
+            "option": ["BTC-26MAR21-40000-C", "BTC-25JUN21-40000-C", ...]
+        }
         """
-        Route the market to a specific handler function based on its type.
+        try:
+            self.exchange.load_markets()
 
-        Parameters:
-        market_type (str): The type of the market (e.g., 'spot', 'future', 'option').
-        symbol (str): The trading pair symbol (e.g., 'BTC/USDT').
-        market (Dict[str, Any]): The market information.
-        """
-        option = None
-        future = None
+            result = {market_type: [] for market_type in self.market_types}
+            for market_type in self.market_types:
+                for symbol, market in self.exchange.markets.items():
+                    if market["type"] == market_type and any(
+                        symbol.startswith(pair_prefix)
+                        for pair_prefix in self.pairs_to_load
+                    ):
+                        result[market_type].append(symbol)
 
-        print(f"Handling {market_type} market: {symbol}")
-        if market_type == "spot":
-            self.spot_market_handler.handle(symbol, market)
-        elif market_type == "future":
-            future = self.future_market_handler.handle(symbol, market)
-        elif market_type == "option":
-            option = self.option_market_handler.handle(symbol, market)
-        else:
-            print(f"Unhandled market type: {market_type}")
+                        # Apply DEBUG_LIMIT per market_type if needed
+                        if DEBUG_LIMIT and len(result[market_type]) >= DEBUG_LIMIT:
+                            break
 
-        # Call the merge handler only if both option and future are defined
-        # print(f"Option: {option}")
-        # print(f"Future {future}")
-        # if option and future:
-        #     self.merge_market_handler.handle(option, future)
+            self.handle_market_type(result)
+        except Exception as e:
+            logger.error(f"Failed to load or process pairs: {e}")
+            # return {market_type: [] for market_type in self.market_types}
+            self.handle_market_type(
+                {market_type: [] for market_type in self.market_types}
+            )
+
+    def handle_market_type(self, selected_pairs: Dict[str, List[str]]):
+        """Handle market type based on predefined filters."""
+        try:
+            for market_type in self.market_types:
+                if market_type == "future":
+                    self.future_results = self.future_market_handler.handle(
+                        selected_pairs[market_type]
+                    )
+                elif market_type == "option":
+                    self.option_results = self.option_market_handler.handle(
+                        selected_pairs[market_type]
+                    )
+        except Exception as e:
+            logger.error(f"Failed to handle market type: {e}")
+
+    def get_results(self) -> Dict[str, Any]:
+        """Return the results of handling future and option market types."""
+        return {"future": self.future_results, "option": self.option_results}

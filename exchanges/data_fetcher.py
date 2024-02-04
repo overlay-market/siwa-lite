@@ -2,7 +2,6 @@ import ccxt
 import requests
 import logging
 import time
-import json
 from consolidate_data import ConsolidateData
 from constants.urls import BINANCE_API_URL
 from utils import handle_error
