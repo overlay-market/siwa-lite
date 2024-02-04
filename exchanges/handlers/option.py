@@ -54,6 +54,8 @@ class OptionMarketHandler:
 
     @staticmethod
     def _calculate_spread_parameters(order) -> tuple:
+        with open("Simple_order_books.json", "w") as f:
+            json.dump(order, f, indent=4)
         bid_price = order["order_book"]["bids"][0][0]
         ask_price = order["order_book"]["asks"][0][0]
         mark_price = order["mark_price"]
@@ -82,8 +84,8 @@ class OptionMarketHandler:
         df = pd.DataFrame(
             {
                 "symbol": [order["symbol"]],
-                "bid_price": [order["order_book"]["bids"][0][0]],
-                "ask_price": [order["order_book"]["asks"][0][0]],
+                "bid_price": [order["current_spot_price"]["bid"]],
+                "ask_price": [order["current_spot_price"]["ask"]],
                 "timestamp": [order["order_book"]["timestamp"]],
                 "datetime": [order["order_book"]["datetime"]],
                 "time_to_maturity_years": [order["time_to_maturity_years"]],
