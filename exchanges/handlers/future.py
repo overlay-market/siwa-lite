@@ -2,6 +2,7 @@ import json
 from typing import Dict, Any, List
 from exchanges.data_fetcher import DataFetcher
 import math
+import pandas as pd
 import numpy as np
 
 
@@ -12,7 +13,6 @@ class FutureMarketHandler:
         self.data_fetcher = DataFetcher(exchange)
 
     def handle(self, market: List[str]) -> List[Dict[str, Any]]:
-        print(f"We have for future: {market}")
         # return list(self.fetch_future_order_books(market))
         with open("Future_order_books.json", "w") as f:
             json.dump(list(self.fetch_future_order_books(market)), f, indent=4)
@@ -93,3 +93,27 @@ class FutureMarketHandler:
             )
 
         return self.interpolate_yield_curve(yield_curve)
+
+    @staticmethod
+    def _create_order_book_dict(order, mas, gms, spread) -> Dict:
+        df = pd.DataFrame(
+            {
+                "symbol": [order["symbol"]],
+                "bid_price": [order["current_spot_price"]["bid"]],
+                "ask_price": [order["current_spot_price"]["ask"]],
+                "timestamp": [order["order_book"]["timestamp"]],
+                "datetime": [order["order_book"]["datetime"]],
+                "time_to_maturity_years": [order["time_to_maturity_years"]],
+                "mid_price": [order["mid_price"]],
+                "mark_price": [order["mark_price"]],
+                "mas": [mas],
+                "gms": [gms],
+                "spread": [spread],
+            }
+        )
+        index_maturity = 30 / 365
+        df["option_type"] = df["time_to_maturity_years"].apply(
+            lambda x: "near_term" if x <= index_maturity else "next_term"
+        )
+        df["datetime_readable"] = pd.to_datetime(df["timestamp"], unit="ms").astype(str)
+        return df.to_dict(orient="records")[0]

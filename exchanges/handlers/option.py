@@ -22,8 +22,6 @@ class OptionMarketHandler:
         self.consolidate_data = ConsolidateData(self.exchange)
 
     def handle(self, market: List[str]) -> List[Dict]:
-        index_maturity = 30 / 365  # 30 days in terms of years
-        print(f"We have for the option market: {market}")
         order_books = []
         for market_price in market:
             order = self._fetch_and_process_order_book(market_price)
