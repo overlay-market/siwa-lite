@@ -1,6 +1,6 @@
 class Filtering:
-    def __init__(self):
-        # self.options_data = options_data
+    def __init__(self, options_data):
+        self.options_data = options_data
         # self.F = F
         # self.RANGE_MULT = RANGE_MULT
         # self.minimum_bid_threshold = minimum_bid_threshold
@@ -126,12 +126,29 @@ class Filtering:
 
         return min_diff_strike
 
-    def set_ATM_strike(self):
-        # Find the strike closest to Fimp
-        closest_strike = min(
-            self.options_data, key=lambda x: abs(x["strike"] - self.Fimp)
-        )
-        self.K_ATM = closest_strike["strike"]
+    def set_ATM_strike(self, call_data, put_data):
+        """
+        Find the strike price with the minimum difference in mid prices between call and put options.
+
+        Parameters:
+        call_data (list): List of call option data.
+        put_data (list): List of put option data.
+
+        Returns:
+        float: Strike price with the minimum price difference.
+        """
+        # Extract strike prices from options_data
+        Fimp = self.calculate_Fimp(call_data, put_data)
+
+        # Find the strikes less than Fimp
+        option_strikes = [
+            self.extract_strike_price(option["symbol"]) for option in self.options_data
+        ]
+        strikes_less_than_Fimp = [strike for strike in option_strikes if strike < Fimp]
+        print(strikes_less_than_Fimp)
+
+        max_strike = self.K_ATM = max(strikes_less_than_Fimp)
+        return max_strike
 
     def select_OTM_options(self):
         # Filter OTM options based on K_ATM
