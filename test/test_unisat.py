@@ -172,7 +172,17 @@ class TestUnisat(unittest.TestCase):
             ['height', 'total', 'start', 'detail'],
         )
 
-
+    def test_get_collection_stats(self):
+        collectionId = 'nodemonkes'
+        self.assertIn(
+            "floorPrice",
+            list(self.UnisatAPI.get_collection_stats(collectionId).json()["data"].keys()),
+        )
+        collectionId = 'bitcoin-frogs'
+        self.assertIn(
+            "floorPrice",
+            list(self.UnisatAPI.get_collection_stats(collectionId).json()["data"].keys()),
+        )
 
 if __name__ == "__main__":
     unittest.main()

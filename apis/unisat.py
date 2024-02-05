@@ -95,20 +95,25 @@ class UnisatAPI:
         '''
         return self._make_request(f'address/{address}/brc20/{ticker}/history', {'type': type, 'start': start, 'limit': limit})
 
-    def get_transferable_inscriptions(self, address, ticker):
-        return self._make_request(f'address/{address}/brc20/{ticker}/transferable-inscriptions')
+    def get_collection_stats(self, collectionId):
+        return requests.post(url='https://open-api.unisat.io/v3/market/collection/auction/collection_statistic', headers=self.headers, json={'collectionId': collectionId})
     
 def main():
     unisat_api = UnisatAPI()
     # print(unisat_api.get_best_block_height().json())
-    response = unisat_api.get_brc20_ticker_history("ordi", 826827, "inscribe-transfer")
-    print(response.json()["data"])
-    parent_directory = os.path.dirname(os.path.abspath(__file__))
-    json_directory = os.path.join(parent_directory, 'json')
-    os.makedirs(json_directory, exist_ok=True)
-    json_file_path = os.path.join(json_directory, 'get_brc20_tx_history.json')
-    with open(json_file_path, 'w') as file:
-        json.dump(response.json()["data"], file, indent=4)
+    # response = unisat_api.get_brc20_ticker_history("ordi", 826827, "inscribe-transfer")
+    # print(response.json()["data"])
+    # parent_directory = os.path.dirname(os.path.abspath(__file__))
+    # json_directory = os.path.join(parent_directory, 'json')
+    # os.makedirs(json_directory, exist_ok=True)
+    # json_file_path = os.path.join(json_directory, 'get_brc20_tx_history.json')
+    # with open(json_file_path, 'w') as file:
+    #     json.dump(response.json()["data"], file, indent=4)
+    response = unisat_api.get_collection_stats('nodemonkes')
+    print("Nodemonkes: ", response.json()["data"]['floorPrice'])
+    response = unisat_api.get_collection_stats('bitcoin-frogs')
+    print("Bitcoin Frogs: ", response.json()["data"]['floorPrice'])
+
 
 if __name__ == "__main__":
     main()
