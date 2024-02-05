@@ -30,7 +30,8 @@ class FutureMarketHandler:
             yield_curve = self.calculate_yield_curve([standardized_data])
             standardized_data["yield_curve"] = yield_curve
 
-            order_filtered.append(standardized_data)
+            order_dict = self._create_order_book_dict(standardized_data)
+            order_filtered.append(order_dict)
 
         return order_filtered
 
@@ -87,15 +88,14 @@ class FutureMarketHandler:
                 yield_curve[symbol] = []
             yield_curve[symbol].append(
                 {
-                    "implied_interest_rate": implied_interest_rate,
-                    "time_to_maturity_years": time_to_maturity_years,
+                    "implied_interest_rate": implied_interest_rate
                 }
             )
 
-        return self.interpolate_yield_curve(yield_curve)
+        return yield_curve
 
     @staticmethod
-    def _create_order_book_dict(order, mas, gms, spread) -> Dict:
+    def _create_order_book_dict(order) -> Dict:
         df = pd.DataFrame(
             {
                 "symbol": [order["symbol"]],
@@ -106,9 +106,10 @@ class FutureMarketHandler:
                 "time_to_maturity_years": [order["time_to_maturity_years"]],
                 "mid_price": [order["mid_price"]],
                 "mark_price": [order["mark_price"]],
-                "mas": [mas],
-                "gms": [gms],
-                "spread": [spread],
+                "yield_curve": [order.get("yield_curve")],
+                # "mas": [mas],
+                # "gms": [gms],
+                # "spread": [spread],
             }
         )
         index_maturity = 30 / 365
