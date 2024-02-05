@@ -25,7 +25,7 @@ class FutureMarketHandler:
         for order in market:
             standardized_data = self.data_fetcher.fetch_option_order_books(order)
             if not standardized_data:
-                continue  # Skip if data fetch failed or returned empty data
+                continue  # Skip if data fetch failed or returned empty data set
 
             yield_curve = self.calculate_yield_curve([standardized_data])
             standardized_data["yield_curve"] = yield_curve
