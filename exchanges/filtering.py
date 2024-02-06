@@ -145,20 +145,89 @@ class Filtering:
             self.extract_strike_price(option["symbol"]) for option in self.options_data
         ]
         strikes_less_than_Fimp = [strike for strike in option_strikes if strike < Fimp]
-        print(strikes_less_than_Fimp)
 
-        max_strike = self.K_ATM = max(strikes_less_than_Fimp)
-        return max_strike
+        # Set the largest strike that is less than Fimp as ATM strike K_ATM for near and next-term options
+        self.K_ATM = max(strikes_less_than_Fimp)
 
-    def select_OTM_options(self):
-        # Filter OTM options based on K_ATM
-        otm_options = [
-            option
-            for option in self.options_data
-            if (option["type"] == "call" and option["strike"] > self.K_ATM)
-            or (option["type"] == "put" and option["strike"] < self.K_ATM)
+        return self.K_ATM
+
+    def select_OTM_options(self, call_data, put_data):
+        """
+        Select out-of-the-money (OTM) options with respect to the ATM strike price for each set of near and next-term options.
+        If both call and put options are selected for the same strike (i.e., K_ATM), then take the average of them.
+
+        Parameters:
+        call_data (list): List of call option data.
+        put_data (list): List of put option data.
+
+        Returns:
+        dict: Dictionary containing OTM options for each set of near and next-term options.
+        """
+        # Calculate K_ATM
+        K_ATM = self.set_ATM_strike(call_data, put_data)
+
+        # Filter strikes less than K_ATM
+        option_strikes = [
+            self.extract_strike_price(option["symbol"])
+            for option in call_data + put_data
         ]
-        return otm_options
+        strikes_less_than_K_ATM = [
+            strike for strike in option_strikes if strike < K_ATM
+        ]
+
+        # Initialize a dictionary to store OTM options
+        OTM_options = {}
+
+        # Select OTM options for each set of near and next-term options
+        for strike in strikes_less_than_K_ATM:
+            if strike != K_ATM:
+                # For strikes different from K_ATM, select OTM options based on mid-price
+                call_OTM = next(
+                    (
+                        call
+                        for call in call_data
+                        if self.extract_strike_price(call["symbol"]) == strike
+                    ),
+                    None,
+                )
+                put_OTM = next(
+                    (
+                        put
+                        for put in put_data
+                        if self.extract_strike_price(put["symbol"]) == strike
+                    ),
+                    None,
+                )
+
+                if call_OTM and put_OTM:
+                    call_price = call_OTM.get("mid_price", 0)
+                    put_price = put_OTM.get("mid_price", 0)
+                    OTM_options[strike] = (call_price + put_price) / 2
+            else:
+                # For K_ATM, take the average of both call and put prices if they exist
+                call_ATM = next(
+                    (
+                        call
+                        for call in call_data
+                        if self.extract_strike_price(call["symbol"]) == K_ATM
+                    ),
+                    None,
+                )
+                put_ATM = next(
+                    (
+                        put
+                        for put in put_data
+                        if self.extract_strike_price(put["symbol"]) == K_ATM
+                    ),
+                    None,
+                )
+
+                if call_ATM and put_ATM:
+                    call_price = call_ATM.get("mid_price", 0)
+                    put_price = put_ATM.get("mid_price", 0)
+                    OTM_options[K_ATM] = (call_price + put_price) / 2
+
+        return OTM_options
 
     def filter_options_by_strike_range(self):
         # Calculate Kmin and Kmax

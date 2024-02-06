@@ -2,9 +2,9 @@ import json
 import logging
 import pandas as pd
 from typing import List, Dict, Optional
+from exchanges.filtering import Filtering
 
 from exchanges.data_fetcher import DataFetcher
-from exchanges.preprocessing import Preprocessing
 from exchanges.consolidate_data import ConsolidateData
 
 from exchanges.constants.utils import SPREAD_MULTIPLIER, SPREAD_MIN
@@ -18,7 +18,6 @@ class OptionMarketHandler:
         self.exchange = exchange
         self.market_types = market_types
         self.data_fetcher = DataFetcher(self.exchange)
-        self.preprocessing = Preprocessing(self.exchange, self.market_types)
         self.consolidate_data = ConsolidateData(self.exchange)
 
     def handle(self, market: List[str]) -> List[Dict]:
@@ -27,8 +26,17 @@ class OptionMarketHandler:
             order = self._fetch_and_process_order_book(market_price)
             if order:
                 order_books.append(order)
-        with open("Option_order_books.json", "w") as f:
-            json.dump(order_books, f, indent=4)
+        sorted = self._sort_call_put_data(order_books)
+        with open("Option_order_books_sortered.json", "w") as f:
+            json.dump(sorted, f, indent=4)
+        filtering = Filtering(options_data=order_books)
+        fimpl = filtering.calculate_Fimp(sorted["call"], sorted["put"])
+        with open("calculated_fimpl.json", "w") as f:
+            json.dump(fimpl, f, indent=4)
+        set_ATM_strike = filtering.set_ATM_strike(sorted["call"], sorted["put"])
+        print(f"ATM {set_ATM_strike}")
+        otm = filtering.select_OTM_options(sorted["call"], sorted["put"])
+        print(f"OTM {otm}")
         return order_books
 
     def _fetch_and_process_order_book(self, market_price: Dict) -> Optional[Dict]:
@@ -106,3 +114,11 @@ class OptionMarketHandler:
         spot_price = self.data_fetcher.fetch_price(symbol, "last")
         mark_price = self.data_fetcher.fetch_mark_price(symbol)
         return spot_price, mark_price
+
+    @staticmethod
+    def _sort_call_put_data(data: List[Dict]) -> Dict:
+        # "symbol": "BTC/USD:BTC-240206-40000-P" is put
+        # "symbol": "BTC/USD:BTC-240206-40000-C is call
+        call_data = [d for d in data if d["symbol"].endswith("C")]
+        put_data = [d for d in data if d["symbol"].endswith("P")]
+        return {"call": call_data, "put": put_data}
