@@ -1,11 +1,13 @@
 import json
 import logging
+from concurrent.futures import ThreadPoolExecutor, as_completed
+from datetime import datetime
+
+import ccxt
 import pandas as pd
 from typing import List, Dict, Optional
 from exchanges.filtering import Filtering
 
-from exchanges.data_fetcher import DataFetcher
-from exchanges.consolidate_data import ConsolidateData
 
 from exchanges.constants.utils import SPREAD_MULTIPLIER, SPREAD_MIN
 
@@ -17,30 +19,52 @@ class OptionMarketHandler:
     def __init__(self, exchange, market_types):
         self.exchange = exchange
         self.market_types = market_types
-        self.data_fetcher = DataFetcher(self.exchange)
-        self.consolidate_data = ConsolidateData(self.exchange)
 
-    def handle(self, market: List[str]) -> List[Dict]:
-        order_books = []
-        for market_price in market:
-            order = self._fetch_and_process_order_book(market_price)
-            if order:
-                order_books.append(order)
-        sorted = self._sort_call_put_data(order_books)
-        with open("Option_order_books_sortered.json", "w") as f:
-            json.dump(sorted, f, indent=4)
-        filtering = Filtering(options_data=order_books)
-        fimpl = filtering.calculate_Fimp(sorted["call"], sorted["put"])
-        with open("calculated_fimpl.json", "w") as f:
-            json.dump(fimpl, f, indent=4)
-        set_ATM_strike = filtering.set_ATM_strike(sorted["call"], sorted["put"])
-        print(f"ATM {set_ATM_strike}")
-        otm = filtering.select_OTM_options(sorted["call"], sorted["put"])
-        print(f"OTM {otm}")
-        return order_books
+    def handle(self, market_symbols: List[str]) -> List[Dict]:
+        # Fetch market data
+        exchange = getattr(ccxt, self.exchange)()
+        market_data = self.fetch_market_data(exchange, market_symbols)
+        print(market_data)
+        # save dataframes to json
+        market_data.to_json('market_data.json')
+
+
+        # # Filter out invalid data
+        # market_data = Filtering.filter_invalid_data(market_data)
+        #
+        # # Process data
+        # results = []
+        # for symbol in market_data['symbol']:
+        #     results.append(self.process_option_data(exchange, symbol))
+        #
+        # return results
+
+    # TODO: Implement this method
+    def fetch_market_data(self, exchange, market_symbols: list[str]) -> pd.DataFrame:
+        data_list = pd.DataFrame()
+        # there is no sense in threading here, because we will face rate limits
+        for symbol in market_symbols:
+            try:
+                ticker = exchange.fetch_ticker(symbol)
+                data_list.append({
+                    'symbol': symbol,
+                    'bid': ticker.get('bid', 0),  # Specify default value as 0 or appropriate
+                    'ask': ticker.get('ask', 0),  # Specify default value as 0 or appropriate
+                })
+
+                # data_list.append({
+                #     'symbol': symbol,
+                #     'bid': ticker.get('bid', 0),  # Specify default value as 0 or appropriate
+                #     'ask': ticker.get('ask', 0),  # Specify default value as 0 or appropriate
+                # })
+            except Exception as e:
+                logging.error(f"Error fetching data for {symbol}: {e}")
+                continue
+
+        return pd.DataFrame(data_list)
 
     def _fetch_and_process_order_book(self, market_price: Dict) -> Optional[Dict]:
-        order = self.data_fetcher.fetch_option_order_books(market_price)
+        order = self.fetch_option_order_books(market_price)
         if not order or not order.get("order_book"):
             return None
 
@@ -110,10 +134,10 @@ class OptionMarketHandler:
         return df.to_dict(orient="records")[0]
 
     # Additional method to fetch spot and mark prices if necessary
-    def _fetch_prices(self, symbol: str) -> tuple:
-        spot_price = self.data_fetcher.fetch_price(symbol, "last")
-        mark_price = self.data_fetcher.fetch_mark_price(symbol)
-        return spot_price, mark_price
+    # def _fetch_prices(self, symbol: str) -> tuple:
+    #     spot_price = self.data_fetcher.fetch_price(symbol, "last")
+    #     mark_price = self.data_fetcher.fetch_mark_price(symbol)
+    #     return spot_price, mark_price
 
     @staticmethod
     def _sort_call_put_data(data: List[Dict]) -> Dict:
@@ -122,3 +146,31 @@ class OptionMarketHandler:
         call_data = [d for d in data if d["symbol"].endswith("C")]
         put_data = [d for d in data if d["symbol"].endswith("P")]
         return {"call": call_data, "put": put_data}
+
+
+    # def fetch_future_order_books(self, limit=100):
+    #     future_markets = self._filter_future_markets()
+    #     for symbol in future_markets:
+    #         standardized_data = self.fetch_option_order_books(symbol, limit)
+    #         if standardized_data:
+    #             self.save_data_to_file(self.exchange.name, standardized_data)
+    #
+    # def _filter_future_markets(self):
+    #     return [
+    #         symbol
+    #         for symbol, market in self.exchange.markets.items()
+    #         if market.get("future", False)
+    #     ]
+    #
+    # def fetch_price(self, symbol, price_type):
+    #     return self.exchange.fetch_ticker(symbol)
+    #
+    # def fetch_mark_price(self, symbol):
+    #     mark_price = self.fetch_price(symbol, "markPrice") or self.fetch_price(
+    #         symbol, "mark_price"
+    #     )
+    #     if mark_price is not None and mark_price != float("inf"):
+    #         return mark_price
+    #
+    #     bid, ask = self.fetch_price(symbol, "bid"), self.fetch_price(symbol, "ask")
+    #     return (bid + ask) / 2 if bid and ask else None

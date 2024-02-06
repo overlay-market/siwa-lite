@@ -1,6 +1,6 @@
 import ccxt
-from data_filter import DataFilter
-from order_books import SPREAD_MIN, SPREAD_MULTIPLIER
+
+from exchanges.constants.utils import SPREAD_MULTIPLIER, SPREAD_MIN
 from utils import handle_error
 
 
@@ -8,7 +8,6 @@ class ConsolidateData:
     def __init__(self, exchange):
         # Initialize with an exchange object and create a DataFilter instance.
         self.exchange = exchange
-        self.data_filter = DataFilter()
         self.data_fetcher = None  # Initialize a placeholder for the DataFetcher.
 
     def standardize_data(self, symbol, order_book_data):

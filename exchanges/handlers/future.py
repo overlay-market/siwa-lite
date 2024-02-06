@@ -1,6 +1,5 @@
 import json
 from typing import Dict, Any, List
-from exchanges.data_fetcher import DataFetcher
 import math
 import pandas as pd
 import numpy as np
@@ -10,7 +9,6 @@ class FutureMarketHandler:
     def __init__(self, exchange: str, market_types: List[str]):
         self.exchange = exchange
         self.market_types = market_types
-        self.data_fetcher = DataFetcher(exchange)
 
     def handle(self, market: List[str]) -> List[Dict[str, Any]]:
         # return list(self.fetch_future_order_books(market))
@@ -86,11 +84,7 @@ class FutureMarketHandler:
             )
             if symbol not in yield_curve:
                 yield_curve[symbol] = []
-            yield_curve[symbol].append(
-                {
-                    "implied_interest_rate": implied_interest_rate
-                }
-            )
+            yield_curve[symbol].append({"implied_interest_rate": implied_interest_rate})
 
         return yield_curve
 
