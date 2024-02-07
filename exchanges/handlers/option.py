@@ -6,6 +6,8 @@ from datetime import datetime
 import ccxt
 import pandas as pd
 from typing import List, Dict, Optional
+
+from exchanges.fetchers.option_fetcher import OptionFetcher
 from exchanges.filtering import Filtering
 
 
@@ -19,49 +21,14 @@ class OptionMarketHandler:
     def __init__(self, exchange, market_types):
         self.exchange = exchange
         self.market_types = market_types
+        self.data_fetcher = OptionFetcher(exchange)
 
     def handle(self, market_symbols: List[str]) -> List[Dict]:
         # Fetch market data
         exchange = getattr(ccxt, self.exchange)()
-        market_data = self.fetch_market_data(exchange, market_symbols)
+        market_data = self.data_fetcher.fetch_market_data(exchange, market_symbols)
         print(market_data)
         # save dataframes to json
-        market_data.to_json('market_data.json')
-
-
-        # # Filter out invalid data
-        # market_data = Filtering.filter_invalid_data(market_data)
-        #
-        # # Process data
-        # results = []
-        # for symbol in market_data['symbol']:
-        #     results.append(self.process_option_data(exchange, symbol))
-        #
-        # return results
-
-    # TODO: Implement this method
-    def fetch_market_data(self, exchange, market_symbols: list[str]) -> pd.DataFrame:
-        data_list = pd.DataFrame()
-        # there is no sense in threading here, because we will face rate limits
-        for symbol in market_symbols:
-            try:
-                ticker = exchange.fetch_ticker(symbol)
-                data_list.append({
-                    'symbol': symbol,
-                    'bid': ticker.get('bid', 0),  # Specify default value as 0 or appropriate
-                    'ask': ticker.get('ask', 0),  # Specify default value as 0 or appropriate
-                })
-
-                # data_list.append({
-                #     'symbol': symbol,
-                #     'bid': ticker.get('bid', 0),  # Specify default value as 0 or appropriate
-                #     'ask': ticker.get('ask', 0),  # Specify default value as 0 or appropriate
-                # })
-            except Exception as e:
-                logging.error(f"Error fetching data for {symbol}: {e}")
-                continue
-
-        return pd.DataFrame(data_list)
 
     def _fetch_and_process_order_book(self, market_price: Dict) -> Optional[Dict]:
         order = self.fetch_option_order_books(market_price)
@@ -146,7 +113,6 @@ class OptionMarketHandler:
         call_data = [d for d in data if d["symbol"].endswith("C")]
         put_data = [d for d in data if d["symbol"].endswith("P")]
         return {"call": call_data, "put": put_data}
-
 
     # def fetch_future_order_books(self, limit=100):
     #     future_markets = self._filter_future_markets()

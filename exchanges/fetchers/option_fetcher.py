@@ -1,22 +1,72 @@
+import json
 import logging
 
 import ccxt
+import pandas as pd
 
 
 class OptionFetcher:
     def __init__(self, exchange: str):
         self.exchange = getattr(ccxt, exchange)()
 
-    def _fetch_data_with_error_handling(self, fetch_function, *args):
-        try:
-            return fetch_function(*args)
-        except (ccxt.NetworkError, ccxt.ExchangeError) as e:
-            logging.error(f"Error fetching data from {self.exchange.name}", e)
-            return None
+    def fetch_market_data(self, exchange, market_symbols: list[str]) -> pd.DataFrame:
+        """
+        Args:
+            exchange: "deribit" or "bitmex"
+            market_symbols: ["BTC-26MAR21-40000-C", "BTC-25JUN21-40000-C", ...]
+        Returns:
+            pd.DataFrame: DataFrame with market data like
+            {
+                "symbol": "BTC-26MAR21-40000-C",
+                "bid": 0.001,
+                "ask": 0.002,
+            },
+            {
+                "symbol": "BTC-25JUN21-40000-C",
+                "bid": 0.001,
+                "ask": 0.002,
+            },
+        """
+        data_list = []  # Initialize an empty list to store data dictionaries
 
-    def fetch_option_order_books(self, symbol):
-        response = self.exchange.fetch_order_book(symbol)
-        return response
+        for symbol in market_symbols:
+            try:
+                ticker = exchange.fetch_ticker(symbol)
+                info = ticker.get("info", {})  # Access the 'info' dictionary
 
-    def fetch_price(self, symbol, price_type):
-        return self.exchange.fetch_ticker(symbol)
+                bid = ticker.get("bid", 0) if ticker.get("bid") is not None else 0
+                ask = ticker.get("ask", 0) if ticker.get("ask") is not None else 0
+                mark_price = float(
+                    info.get("mark_price", 0)
+                )  # Assuming mark_price is always provided
+                timestamp = info.get(
+                    "timestamp", 0
+                )  # Assuming timestamp is always provided
+                underlying_price = float(info.get("underlying_price", 0))
+                open_interest = float(info.get("open_interest", 0))
+                volume = float(
+                    info.get("volume", 0)
+                )  # Assuming this is the volume in the 'stats' if provided
+                greeks = info.get("greeks", {})
+
+                # Extend the dictionary with the new fields
+                data_dict = {
+                    "symbol": symbol,
+                    "bid": bid,
+                    "ask": ask,
+                    "mark_price": mark_price,
+                    "timestamp": timestamp,
+                    "underlying_price": underlying_price,
+                    "open_interest": open_interest,
+                    "volume": volume,
+                    "greeks": greeks,
+                }
+                data_list.append(data_dict)  # Append the dictionary to the list
+
+            except Exception as e:
+                logging.error(f"Error fetching data for {symbol}: {e}")
+                continue
+        with open("market_data.json", "w") as f:
+            json.dump(data_list, f, indent=4)
+
+        return pd.DataFrame(data_list)

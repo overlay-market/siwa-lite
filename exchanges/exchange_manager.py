@@ -53,9 +53,13 @@ class ExchangeManager:
                 base, quote = pair.split(":")[0].split("/")
                 for market_type in self.market_types:
                     filtered_df = markets_df[
-                        (markets_df["base"] == base) # if base is BTC (it means from)
-                        & (markets_df["quote"] == quote)  # if quote is USD (it means to)
-                        & (markets_df["type"] == market_type)  # if market_type is future (it means type of market)
+                        (markets_df["base"] == base)  # if base is BTC (it means from)
+                        & (
+                            markets_df["quote"] == quote
+                        )  # if quote is USD (it means to)
+                        & (
+                            markets_df["type"] == market_type
+                        )  # if market_type is future (it means type of market)
                     ]
 
                     # Extract symbols for the filtered markets
