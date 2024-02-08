@@ -22,10 +22,10 @@ class ExchangeManager:
         self.exchange = getattr(ccxt, exchange_id)()
         self.option_market_handler = OptionMarketHandler(exchange_id, market_types)
         # self.future_market_handler = FutureMarketHandler()
-        self.options_data = {}
+        self.options_data = pd.DataFrame()
         self.futures_data = {}
 
-    def load_specific_pairs(self):
+    def load_specific_pairs(self) -> pd.DataFrame:
         """Load and process specific pairs based on predefined filters using Pandas, with output limited to specific base market pairs.
         input: pairs_to_load: List[str] like ["BTC/USD:BTC", "ETH/USD:ETH"], market_types: List[str] like ["future", "option"]
         Output for specified pairs will look like:
@@ -41,6 +41,7 @@ class ExchangeManager:
             ...
         }
         """
+        print(f"Loading specific pairs for {self.exchange_id}")
         try:
             # Load all markets from the exchange
             all_markets = self.exchange.load_markets()
@@ -70,16 +71,15 @@ class ExchangeManager:
                         filtered_markets[pair] = {}
                     filtered_markets[pair][market_type] = symbols
 
-            with open("specific_pairs.json", "w") as f:
-                json.dump(filtered_markets, f, indent=4)
+            # self.handle_market_type(filtered_markets)
+            return self.handle_market_type(filtered_markets)
 
-            # return filtered_markets
-            self.handle_market_type(filtered_markets)
         except Exception as e:
             logger.error(f"Error loading specific pairs: {e}")
-            return {}
+            return pd.DataFrame()
 
-    def handle_market_type(self, loaded_markets: Dict[str, Any]):
+    # TODO: fix this bullshit later
+    def handle_market_type(self, loaded_markets: Dict[str, Any]) -> pd.DataFrame:
         """Handle the loaded markets based on the market type, either option or future.
         input: loaded_markets: Dict[str, Any] like {
             "BTC/USD:BTC": {
@@ -96,10 +96,14 @@ class ExchangeManager:
         """
         for pair in self.pairs_to_load:
             if "option" in loaded_markets[pair]:
-                x = self.options_data[pair] = self.option_market_handler.handle(
+                # x = self.options_data[pair] = self.option_market_handler.handle(
+                #     loaded_markets[pair]["option"]
+                # )
+                print(
+                    f"Length of loaded markets: {len(loaded_markets[pair]['option'])}"
+                )
+                self.options_data = self.option_market_handler.handle(
                     loaded_markets[pair]["option"]
                 )
-            # if "future" in loaded_markets[pair]:
-            #     self.futures_data[pair] = self.future_market_handler.fetch_future_order_books(
-            #         loaded_markets[pair]["future"]
-            #     )
+
+        return self.options_data
