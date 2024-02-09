@@ -92,7 +92,7 @@ class CSGOS2kins:
         dict
             A dictionary containing the retrieved data from the API.
         """
-        url = self.base_url + self.PRICE_HISTORIES_ENDPOINT
+        url = self.base_url + self.PRICES_ENDPOINT
         payload = {
             "source": self.SOURCES,
             "days": self.DAYS,
