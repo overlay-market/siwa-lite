@@ -4,18 +4,19 @@ except ModuleNotFoundError:
     from utils import get_api_key
 from pydantic import BaseModel, ValidationError
 import requests
-from typing import List, Optional
+from typing import List
+import pandas as pd
 
 
 # TODO: Add Pydantic models for the data fetched from the API.
 class CSGOS2kinsPrice(BaseModel):
-    market: str
+    isInflated: bool
     price: int
-    quantity: int
-    updated_at: Optional[int]
+    count: int
+    avg30: int
+    createdAt: str
 
 
-# TODO: Add Pydantic models for the data fetched from the API.
 class CSGOS2kinsPrices(BaseModel):
     market_hash_name: str
     prices: List[CSGOS2kinsPrice]
@@ -91,7 +92,7 @@ class CSGOS2kins:
         dict
             A dictionary containing the retrieved data from the API.
         """
-        url = self.base_url + self.PRICES_ENDPOINT
+        url = self.base_url + self.PRICE_HISTORIES_ENDPOINT
         payload = {
             "source": self.SOURCES,
             "days": self.DAYS,
@@ -101,10 +102,32 @@ class CSGOS2kins:
         }
         response = requests.get(url, headers=self.headers, params=payload)
         data = response.json()
-        # self.validate_api_data(CSGOS2kinsPrices, data["data"])
         return data
+
+    def get_prices_df(self):
+        """
+        Fetches the prices of CSGO skins and returns them as a pandas
+        DataFrame.
+
+        Returns:
+        -------
+        pd.DataFrame
+            A DataFrame containing the fetched data from the API.
+        """
+        data = self.get_prices()
+
+        prices_list = []
+        for market_hash_name, details in data.items():
+            prices_data = details.get("cs2go", {})
+            if prices_data:
+                prices_data["market_hash_name"] = market_hash_name
+                prices_list.append(prices_data)
+
+        df = pd.DataFrame(prices_list)
+
+        return df
 
 
 if __name__ == "__main__":
     csgo2 = CSGOS2kins()
-    print(csgo2.get_prices())
+    print(csgo2.get_prices_df())
