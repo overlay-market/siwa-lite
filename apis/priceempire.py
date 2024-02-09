@@ -2,24 +2,24 @@ try:
     from apis.utils import get_api_key
 except ModuleNotFoundError:
     from utils import get_api_key
-from pydantic import BaseModel, ValidationError
+from pydantic import BaseModel, ValidationError, conint, conlist, confloat, confloat
 import requests
-from typing import List
+from typing import Dict, Optional
 import pandas as pd
 
 
-# TODO: Add Pydantic models for the data fetched from the API.
 class CSGOS2kinsPrice(BaseModel):
-    isInflated: bool
-    price: int
-    count: int
-    avg30: int
-    createdAt: str
+    isInflated: Optional[bool] = None
+    price: Optional[int] = None
+    count: Optional[int] = None
+    avg30: Optional[int] = None
+    createdAt: Optional[str] = None
+    liquidity: Optional[float] = None
 
 
 class CSGOS2kinsPrices(BaseModel):
     market_hash_name: str
-    prices: List[CSGOS2kinsPrice]
+    prices: Dict[str, CSGOS2kinsPrice]
 
 
 class CSGOS2kins:
@@ -40,20 +40,12 @@ class CSGOS2kins:
     API_PREFIX = "PRICE_EMPIRE"
     PRICES_ENDPOINT = "v3/items/prices"
     PRICE_HISTORIES_ENDPOINT = "v3/items/prices/history"
-    PRICE_HISTORIES_RPM = 20
     CURRENCY = "USD"
     APP_ID = 730  # Available values : 730, 440, 570, 252490
     SOURCES = "cs2go"
     DEFAULT_BASE_URL = "https://api.pricempire.com/"
-    MAPPING_PATH = "apis/csgo/csgo2_mapping.csv"
     DAYS = 7
     CONTENT_TYPE = "application/json"
-    DATA_KEY = "data"
-    PRICES_KEY = "prices"
-    PRICE_KEY = "price"
-    QUANTITY_KEY = "quantity"
-    QUANTITY_MAP_KEY = "mapped_quantity"
-    MARKET_HASH_NAME_KEY = "market_hash_name"
     CONTENT_TYPE_KEY = "Content-Type"
 
     def __init__(self, base_url=DEFAULT_BASE_URL):
@@ -64,24 +56,37 @@ class CSGOS2kins:
         ----------
         base_url : str, optional
             The base URL for the CSGOSkins API.
-        api_key : str
-            The API key to authenticate with the CSGOSkins API.
         """
         self.base_url = base_url
         self.api_key = get_api_key(self.API_PREFIX)
         self.headers = {self.CONTENT_TYPE_KEY: self.CONTENT_TYPE}
 
-    # TODO: Add a method to validate the data fetched from the API using Pydantic.
-    # def validate_api_data(self, model: BaseModel, data):
-    #     """Validate data pulled from external API using Pydantic."""
-    #     try:
-    #         for item in data:
-    #             model(**item)
-    #     except ValidationError as e:
-    #         raise Exception(
-    #             f"Data pulled from {self.base_url} does not match "
-    #             f"pre-defined Pydantic data structure: {e}"
-    #         )
+    def validate_api_data(self, model: BaseModel, data):
+        """
+        Validate data pulled from external API using Pydantic.
+
+        Parameters:
+        -----------
+        model : pydantic.BaseModel
+            The Pydantic model to validate against.
+        data : dict
+            The data pulled from the API.
+
+        Raises:
+        -------
+        Exception
+            If the data does not match the pre-defined Pydantic data structure.
+
+        """
+        print("Data from API:", data)  # Print out the data before validation
+        try:
+            for item in data.values():
+                model(**item)
+        except ValidationError as e:
+            raise Exception(
+                f"Data pulled from {self.base_url} does not match "
+                f"pre-defined Pydantic data structure: {e}"
+            )
 
     def get_prices(self):
         """
@@ -102,6 +107,7 @@ class CSGOS2kins:
         }
         response = requests.get(url, headers=self.headers, params=payload)
         data = response.json()
+        self.validate_api_data(CSGOS2kinsPrice, data)
         return data
 
     def get_prices_df(self):
@@ -111,7 +117,7 @@ class CSGOS2kins:
 
         Returns:
         -------
-        pd.DataFrame
+        pd.DataFrame>
             A DataFrame containing the fetched data from the API.
         """
         data = self.get_prices()
