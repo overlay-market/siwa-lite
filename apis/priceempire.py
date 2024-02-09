@@ -4,22 +4,32 @@ except ModuleNotFoundError:
     from utils import get_api_key
 from pydantic import BaseModel, ValidationError, conint, conlist, confloat, confloat
 import requests
-from typing import Dict, Optional
+from typing import Dict, Optional, List
 import pandas as pd
 
 
-class CSGOS2kinsPrice(BaseModel):
+class Source(BaseModel):
     isInflated: Optional[bool] = None
     price: Optional[int] = None
     count: Optional[int] = None
     avg30: Optional[int] = None
     createdAt: Optional[str] = None
+
+
+class Skin(BaseModel):
     liquidity: Optional[float] = None
+    sources: Dict[str, Source] = {}
+
+    class Config:
+        extra = "allow"
 
 
 class CSGOS2kinsPrices(BaseModel):
-    market_hash_name: str
-    prices: Dict[str, CSGOS2kinsPrice]
+    prices: Dict[str, Skin]
+
+
+class CSGOS2kinsHistory(BaseModel):
+    history: Dict[str, List[int]]
 
 
 class CSGOS2kins:
@@ -42,7 +52,7 @@ class CSGOS2kins:
     PRICE_HISTORIES_ENDPOINT = "v3/items/prices/history"
     CURRENCY = "USD"
     APP_ID = 730  # Available values : 730, 440, 570, 252490
-    SOURCES = "buff"
+    SOURCES = "cs2go"
     DEFAULT_BASE_URL = "https://api.pricempire.com/"
     DAYS = 7
     CONTENT_TYPE = "application/json"
@@ -80,8 +90,8 @@ class CSGOS2kins:
         """
         print("Data from API:", data)  # Print out the data before validation
         try:
-            for item in data.values():
-                model(**item)
+            for market_hash_name, item in data.items():
+                model(prices={market_hash_name: item})
         except ValidationError as e:
             raise Exception(
                 f"Data pulled from {self.base_url} does not match "
@@ -107,7 +117,7 @@ class CSGOS2kins:
         }
         response = requests.get(url, headers=self.headers, params=payload)
         data = response.json()
-        self.validate_api_data(CSGOS2kinsPrice, data)
+        self.validate_api_data(CSGOS2kinsPrices, data)
         return data
 
     def get_prices_df(self):
