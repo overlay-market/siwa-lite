@@ -6,6 +6,7 @@ from pydantic import BaseModel, ValidationError, conint, conlist, confloat, conf
 import requests
 from typing import Dict, Optional, List
 import pandas as pd
+import prometheus_metrics
 
 
 class Source(BaseModel):
@@ -51,6 +52,9 @@ class CSGOS2kins:
     PRICES_ENDPOINT = "v3/items/prices"
     PRICE_HISTORIES_ENDPOINT = "v3/items/prices/history"
     CURRENCY = "USD"
+    MARKET_HASH_NAME_KEY = "market_hash_name"
+    PRICE_KEY = "price"
+    QUANTITY_KEY = "count"
     APP_ID = 730  # Available values : 730, 440, 570, 252490
     SOURCES = "cs2go"
     DEFAULT_BASE_URL = "https://api.pricempire.com/"
@@ -142,8 +146,38 @@ class CSGOS2kins:
         df = pd.DataFrame(prices_list)
 
         return df
+    
+    def agg_data(self, df):
+        """
+        Aggregates the data of a given DataFrame by 'market_hash_name',
+        computing the minimum price and total quantity for each group.
+
+        Parameters:
+        ----------
+        df : pd.DataFrame
+            The input DataFrame containing the data to aggregate.
+
+        Returns:
+        -------
+        pd.DataFrame
+            A DataFrame containing the aggregated data.
+        """
+        df = (
+            df.groupby(self.MARKET_HASH_NAME_KEY)[self.PRICE_KEY, self.QUANTITY_KEY]
+            .agg(
+                price=pd.NamedAgg(column=self.PRICE_KEY, aggfunc="min"),
+                quantity=pd.NamedAgg(column=self.QUANTITY_KEY, aggfunc="sum"),
+            )
+            .reset_index()
+        )
+        # for row in df.to_dict("records"):
+        #     prometheus_metrics.csgo_price_gauge.labels(
+        #         market_hash_name=row["market_hash_name"]
+        #     ).set(row["price"]) # TODO: Fix this
+        return df
 
 
 if __name__ == "__main__":
     csgo2 = CSGOS2kins()
-    print(csgo2.get_prices_df())
+    data = csgo2.get_prices_df()
+    print(csgo2.agg_data(data))
