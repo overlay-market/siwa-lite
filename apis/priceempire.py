@@ -42,7 +42,7 @@ class CSGOS2kins:
     PRICE_HISTORIES_ENDPOINT = "v3/items/prices/history"
     CURRENCY = "USD"
     APP_ID = 730  # Available values : 730, 440, 570, 252490
-    SOURCES = "cs2go"
+    SOURCES = "buff"
     DEFAULT_BASE_URL = "https://api.pricempire.com/"
     DAYS = 7
     CONTENT_TYPE = "application/json"
@@ -124,7 +124,7 @@ class CSGOS2kins:
 
         prices_list = []
         for market_hash_name, details in data.items():
-            prices_data = details.get("cs2go", {})
+            prices_data = details.get(self.SOURCES, {})
             if prices_data:
                 prices_data["market_hash_name"] = market_hash_name
                 prices_list.append(prices_data)
