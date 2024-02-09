@@ -20,7 +20,6 @@ class OptionFetcher:
             pd.DataFrame: DataFrame with market data for each option contract.
         """
         data_list = []  # Initialize an empty list to store data dictionaries
-        raw_data = []  # Initialize an empty list to store raw data
 
         try:
             all_tickers = exchange.fetch_tickers(market_symbols)
@@ -51,7 +50,6 @@ class OptionFetcher:
                     "estimated_delivery_price": estimated_delivery_price,
                 }
                 data_list.append(data_dict)
-                raw_data.append(ticker)
 
         except Exception as e:
             logging.error(f"Error fetching tickers: {e}")
@@ -103,5 +101,54 @@ class OptionFetcher:
 
         except Exception as e:
             logging.error(f"Error fetching tickers from OKX: {e}")
+
+        return pd.DataFrame(data_list)
+
+    def fetch_market_data_binance(
+        self, exchange, market_symbols: list[str]
+    ) -> pd.DataFrame:
+        """
+        Fetches market data for a given list of market symbols from Binance exchange.
+        Args:
+            exchange: An instance of an exchange (here expected to be Binance initialized with ccxt)
+            market_symbols: A list of symbols in the format recognized by Binance (e.g., "BTC-240628-29000-P")
+        Returns:
+            pd.DataFrame: DataFrame with market data for each option contract.
+        """
+        data_list = []  # Initialize an empty list to store data dictionaries
+
+        try:
+            all_tickers = exchange.fetch_tickers(market_symbols)
+            for symbol, ticker in all_tickers.items():
+                info = ticker.get("info", {})
+                bid = float(info.get("bidPrice", 0))
+                ask = float(info.get("askPrice", 0))
+                last = float(info.get("lastPrice", 0))
+                high = float(info.get("high", 0))
+                low = float(info.get("low", 0))
+                open_price = float(info.get("open", 0))
+                volume = float(info.get("volume", 0))  # Trading volume
+                strike_price = float(info.get("strikePrice", 0))
+                exercise_price = float(info.get("exercisePrice", 0))
+                timestamp = ticker.get("timestamp", 0)  # Timestamp
+
+                # Construct a dictionary for each symbol with the required data
+                data_dict = {
+                    "symbol": symbol,
+                    "bid": bid,
+                    "ask": ask,
+                    "last": last,
+                    "high": high,
+                    "low": low,
+                    "open": open_price,
+                    "volume": volume,
+                    "timestamp": timestamp,
+                    "strike_price": strike_price,
+                    "exercise_price": exercise_price,
+                }
+                data_list.append(data_dict)
+
+        except Exception as e:
+            print(f"Error fetching tickers from Binance: {e}")
 
         return pd.DataFrame(data_list)

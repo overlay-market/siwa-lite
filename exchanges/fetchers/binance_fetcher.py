@@ -1,10 +1,10 @@
 import requests
 
 from exchanges.constants.urls import BINANCE_API_URL
-from exchanges.exchange_manager import logger
 
 
 # Assuming BINANCE_API_URL and logger are defined elsewhere as before.
+
 
 class BinanceFetcher:
     @staticmethod
@@ -21,12 +21,12 @@ class BinanceFetcher:
         # futures_symbols = binance_fetcher.fetch_symbols('futures')
         """
         symbol_key = {
-            'options': 'optionSymbols',
-            'futures': 'futuresSymbols',
+            "options": "optionSymbols",
+            "futures": "futuresSymbols",
         }.get(symbol_type)
 
         if not symbol_key:
-            logger.error(f"Invalid symbol type: {symbol_type}")
+            print(f"Invalid symbol type: {symbol_type}")
             return []
 
         try:
@@ -38,13 +38,13 @@ class BinanceFetcher:
                 symbols = []
 
                 for symbol_info in exchange_info.get(symbol_key, []):
-                    if 'BTC' in symbol_info.get("symbol", ""):
+                    if "BTC" in symbol_info.get("symbol", ""):
                         symbols.append(symbol_info.get("symbol"))
 
                 return symbols
             else:
-                logger.error(f"Error fetching {symbol_type}: {response.status_code}")
+                print(f"Failed to fetch {symbol_type} symbols from Binance API")
                 return []
         except Exception as e:
-            logger.error(f"Exception occurred: {e}")
+            print(f"Error fetching {symbol_type} symbols from Binance API: {e}")
             return []

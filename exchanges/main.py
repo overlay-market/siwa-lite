@@ -17,9 +17,7 @@ def main():
         # deribit = DeribitManager(
         #     pairs_to_load=["BTC/USD:BTC"], market_types=["option"]
         # )
-        binance = BinanceManager(
-            pairs_to_load=["BTC/USD:BTC"], market_types=["option"]
-        )
+        binance = BinanceManager(pairs_to_load=["BTC/USD:BTC"], market_types=["option"])
         # okx = OKXManager(pairs_to_load=["BTC/USD:BTC"], market_types=["option"])
         # deribit.load_specific_pairs()
         # # deribit.get_results()

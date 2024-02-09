@@ -25,10 +25,19 @@ class OptionMarketHandler:
         exchange = getattr(ccxt, self.exchange)()
         # market_data = self.data_fetcher.fetch_market_data(exchange, market_symbols)
         if self.exchange == "deribit":
-            market_data = self.data_fetcher.fetch_market_data_deribit(exchange, market_symbols)
+            market_data = self.data_fetcher.fetch_market_data_deribit(
+                exchange, market_symbols
+            )
         elif self.exchange == "okx":
             print("Fetching data from OKX")
-            market_data = self.data_fetcher.fetch_market_data_okx(exchange, market_symbols)
+            market_data = self.data_fetcher.fetch_market_data_okx(
+                exchange, market_symbols
+            )
+        elif self.exchange == "binance":
+            print("Fetching data from Binance")
+            market_data = self.data_fetcher.fetch_market_data_binance(
+                exchange, market_symbols
+            )
 
         processed_data = self.processing.preprocess_data(market_data)
         # Calculate implied interest rates

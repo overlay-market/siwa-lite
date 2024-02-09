@@ -5,6 +5,7 @@ import logging
 
 import pandas as pd
 
+from exchanges.fetchers.binance_fetcher import BinanceFetcher
 from exchanges.handlers.future import FutureMarketHandler
 from exchanges.handlers.option import OptionMarketHandler
 
@@ -22,6 +23,7 @@ class ExchangeManager:
         self.exchange = getattr(ccxt, exchange_id)()
         self.option_market_handler = OptionMarketHandler(exchange_id, market_types)
         # self.future_market_handler = FutureMarketHandler()
+        self.binance_fetcher = BinanceFetcher()
         self.options_data = pd.DataFrame()
         self.futures_data = {}
 
@@ -44,6 +46,12 @@ class ExchangeManager:
         print(f"Loading specific pairs for {self.exchange_id}")
         try:
             # Load all markets from the exchange
+            if self.exchange_id == "binance":
+                print("Fetching binance option symbols")
+                binance_option_symbols = self.binance_fetcher.fetch_symbols("options")
+                data = {"BTC/USD:BTC": {"option": binance_option_symbols}}
+                return self.handle_market_type(data)
+
             all_markets = self.exchange.load_markets()
             # Convert markets data to a pandas DataFrame for easier filtering
             markets_df = pd.DataFrame(all_markets).T  # Transpose to get markets as rows
