@@ -4,9 +4,9 @@ except ModuleNotFoundError:
     from utils import get_api_key
 from pydantic import BaseModel, ValidationError
 import requests
-from typing import Dict, Optional, List
+from typing import Dict, Optional
 import pandas as pd
-
+import numpy as np
 
 
 class Source(BaseModel):
@@ -28,10 +28,6 @@ class Skin(BaseModel):
 
 class CSGOS2kinsPrices(BaseModel):
     prices: Dict[str, Skin]
-
-
-class CSGOS2kinsHistory(BaseModel):
-    history: Dict[str, List[int]]
 
 
 class CSGOS2kins:
@@ -69,7 +65,7 @@ class CSGOS2kins:
         """
         Initializes the CSGOSkins class with the base URL and API key.
 
-        Parameters: 
+        Parameters:
         ----------
         base_url : str, optional
             The base URL for the CSGOSkins API.
@@ -95,7 +91,6 @@ class CSGOS2kins:
             If the data does not match the pre-defined Pydantic data structure.
 
         """
-        print("Data from API:", data)  # Print out the data before validation
         try:
             for market_hash_name, item in data.items():
                 model(prices={market_hash_name: item})
@@ -103,7 +98,7 @@ class CSGOS2kins:
             raise Exception(
                 f"Data pulled from {self.base_url} does not match "
                 f"pre-defined Pydantic data structure: {e}"
-            ) 
+            )
 
     def get_prices(self):
         """
@@ -179,13 +174,154 @@ class CSGOS2kins:
         #     prometheus_metrics.csgo_price_gauge.labels(
         #         market_hash_name=row["market_hash_name"]
         #     ).set(row["price"]) # TODO: Fix this
+        df["avg_index_share"] = df["price"] / df["quantity"]
+        df["std_index_share"] = df["avg_index_share"].std()
         df.to_csv(self.MAPPING_PATH, index=False)
         return df
+
+    def get_caps(
+        self,
+        mapping: pd.DataFrame,
+        k: float = None,
+        upper_multiplier: float = None,
+        lower_multiplier: float = None,
+    ):
+        """
+        Derives the caps for each skin in the mapping.
+
+        Parameters:
+        ----------
+        mapping : pd.DataFrame
+            The input DataFrame containing skins and their avg and std dev of
+            index share.
+        upper_multiplier : float
+            The multiplier to use for the upper cap.
+        lower_multiplier : float
+            The multiplier to use for the lower cap.
+
+        Returns:
+        -------
+        pd.DataFrame
+            Input dataframe with caps added.
+        """
+        # Get caps for each skin
+        mapping = pd.read_csv(self.MAPPING_PATH, index_col=0)
+        mapping = mapping.rename(columns={self.QUANTITY_KEY: self.QUANTITY_MAP_KEY})
+        if (k is None) and (upper_multiplier is None and lower_multiplier is None):
+            raise ValueError("Must specify either k or upper/lower multipliers")
+        if (k is not None) and (
+            upper_multiplier is not None or lower_multiplier is not None
+        ):
+            raise ValueError("Cannot specify both k and upper/lower multipliers")
+        if upper_multiplier is not None and lower_multiplier is None:
+            mapping["upper_cap_index_share"] = (
+                mapping["avg_index_share"]
+                + upper_multiplier * mapping["std_index_share"]
+            )
+            mapping["lower_cap_index_share"] = np.where(
+                mapping["avg_index_share"]
+                - lower_multiplier * mapping["std_index_share"]
+                > 0,
+                mapping["avg_index_share"]
+                - lower_multiplier * mapping["std_index_share"],
+                0,
+            )
+        elif k is not None:
+            mapping["multiplier"] = np.exp(-k * mapping["avg_index_share"])
+            mapping["upper_cap_index_share"] = (
+                mapping["avg_index_share"]
+                + mapping["multiplier"] * mapping["std_index_share"]
+            )
+            mapping["lower_cap_index_share"] = (
+                mapping["avg_index_share"]
+                - mapping["multiplier"] * mapping["std_index_share"]
+            )
+            mapping["lower_cap_index_share"] = np.where(
+                mapping["lower_cap_index_share"] < 0,
+                0,
+                mapping["lower_cap_index_share"],
+            )
+        return mapping
+
+    def adjust_share(self, df, max_iter):
+        # Initialize
+        df["mean_cap_index_share"] = (
+            df["lower_cap_index_share"] + df["upper_cap_index_share"]
+        ) / 2
+        elements = df["mean_cap_index_share"].tolist()  # Access by name, not index
+        min_percentages = df["lower_cap_index_share"].tolist()
+        max_percentages = df["upper_cap_index_share"].tolist()
+        max_iterations = max_iter  # setting a limit to prevent infinite loops
+        iterations = 0
+
+        while iterations < max_iterations:
+            # Calculate total sum
+            sum_elements = sum(elements)
+            # Calculate deviations
+            deviations = []
+            for i, num in enumerate(elements):
+                current_percentage = num / sum_elements
+                if current_percentage < min_percentages[i]:
+                    deviation = current_percentage - min_percentages[i]
+                elif current_percentage > max_percentages[i]:
+                    deviation = current_percentage - max_percentages[i]
+                else:
+                    deviation = 0
+                deviations.append(deviation)
+
+            # Check if all deviations are zero (all elements within their acceptable ranges)
+            if all(d == 0 for d in deviations):
+                break
+
+            # Sort by deviation
+            sorted_indices = sorted(
+                range(len(deviations)), key=lambda k: abs(deviations[k]), reverse=True
+            )
+
+            # Adjust the Most Deviating Element
+            most_deviating_index = sorted_indices[0]
+            if deviations[most_deviating_index] < 0:
+                # Below the acceptable range
+                target_value = min_percentages[most_deviating_index] * sum_elements
+            else:
+                # Above the acceptable range
+                target_value = max_percentages[most_deviating_index] * sum_elements
+
+            # Update the value in elements list
+            elements[most_deviating_index] = target_value
+
+            iterations += 1
+
+        # Update the DataFrame
+        df["mean_cap_index_share"] = elements
+
+        return df
+
+    def get_index(self, df, caps):
+        # Get caps
+        df = df.merge(caps, on=self.MARKET_HASH_NAME_KEY, how="inner")
+        df["index"] = df["price_x"] * df["quantity_x"]
+        adjusted_df = self.adjust_share(
+            df[["index", "lower_cap_index_share", "upper_cap_index_share"]],
+            max_iter=1000,
+        )
+        index = adjusted_df["index"].sum()
+        # index = self.cap_compared_to_prev(index)
+
+        # Set prometheus metric to index
+        print(f"Set prometheus metric to index {index}")
+        # prometheus_metrics.csgo_index_gauge.set(index)
+        return index
 
 
 if __name__ == "__main__":
     csgo2 = CSGOS2kins()
     data = csgo2.get_prices()
     df = csgo2.get_prices_df()
+    print(df)
     df = csgo2.agg_data(df)
     print(df)
+    caps = csgo2.get_caps(df, k=100)
+    print("Caps: ", df)
+    index = csgo2.get_index(df, caps)
+    print("index: ", df)
