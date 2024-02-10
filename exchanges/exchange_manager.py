@@ -43,6 +43,11 @@ class ExchangeManager:
             ...
         }
         """
+
+        order_book = self.exchange.fetch_order_book("BTC/USDT")
+        with open(f"{self.exchange_id}_order_book.json", "w") as f:
+            json.dump(order_book, f, indent=4)
+
         print(f"Loading specific pairs for {self.exchange_id}")
         try:
             # Load all markets from the exchange
@@ -82,6 +87,12 @@ class ExchangeManager:
                     filtered_markets[pair][market_type] = symbols
 
             # self.handle_market_type(filtered_markets)
+            print(
+                f"Lenght of options data: {len(filtered_markets['BTC/USD:BTC']['option'])}"
+            )
+            print(
+                f"Lenght of futures data: {len(filtered_markets['BTC/USD:BTC']['future'])}"
+            )
             return self.handle_market_type(filtered_markets)
 
         except Exception as e:
@@ -104,23 +115,16 @@ class ExchangeManager:
         }
         Output will be a list of order books for the specified market type.
         """
-        print(loaded_markets)
         for pair in self.pairs_to_load:
-            # if "option" in loaded_markets[pair]:
-            #     # x = self.options_data[pair] = self.option_market_handler.handle(
-            #     #     loaded_markets[pair]["option"]
-            #     # )
-            #     print(
-            #         f"Length of loaded markets: {len(loaded_markets[pair]['option'])}"
-            #     )
-            #     self.options_data = self.option_market_handler.handle(
-            #         loaded_markets[pair]["option"]
-            #     )
+            if "option" in loaded_markets[pair]:
+                self.options_data = self.option_market_handler.handle(
+                    loaded_markets[pair]["option"]
+                )
 
-            if "future" in loaded_markets[pair]:
+            elif "future" in loaded_markets[pair]:
                 print("Loading futures data")
                 self.futures_data = self.future_market_handler.handle(
                     loaded_markets[pair]["future"]
                 )
 
-        return self.options_data
+        return pd.concat([self.options_data, self.futures_data], ignore_index=True)
