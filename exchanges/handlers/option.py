@@ -39,11 +39,17 @@ class OptionMarketHandler:
                 exchange, market_symbols
             )
 
-        processed_data = self.processing.preprocess_data(market_data)
         # Calculate implied interest rates
-        with_rates = self.processing.calculate_implied_interest_rates(processed_data)
+
+        with_rates = self.processing.calculate_implied_interest_rates(market_data)
         # Build interest rate term structure
-        return with_rates
-        # term_structure = self.processing.build_interest_rate_term_structure(with_rates)
+
+        with_rates.to_json("with_rates.json", orient="records", date_format="iso")
+
+        term_structure = self.processing.build_interest_rate_term_structure(with_rates)
+
+        term_structure.to_json(
+            "term_structure.json", orient="records", date_format="iso"
+        )
 
         # return term_structure

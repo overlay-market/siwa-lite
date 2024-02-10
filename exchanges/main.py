@@ -14,17 +14,17 @@ logger = logging.getLogger(__name__)
 
 def main():
     try:
-        # deribit = DeribitManager(
-        #     pairs_to_load=["BTC/USD:BTC"], market_types=["option"]
-        # )
+        # deribit = DeribitManager(pairs_to_load=["BTC/USD:BTC"], market_types=["option"])
         binance = BinanceManager(pairs_to_load=["BTC/USD:BTC"], market_types=["option"])
-        # okx = OKXManager(pairs_to_load=["BTC/USD:BTC"], market_types=["option"])
+        okx = OKXManager(
+            pairs_to_load=["BTC/USD:BTC"], market_types=["option", "future"]
+        )
         # deribit.load_specific_pairs()
         # # deribit.get_results()
 
         results = pd.DataFrame()
 
-        for manager in [binance]:
+        for manager in [okx]:
             # results.append(manager.load_specific_pairs())
             results = pd.concat(
                 [results, manager.load_specific_pairs()], ignore_index=True

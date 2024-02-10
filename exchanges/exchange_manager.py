@@ -22,10 +22,10 @@ class ExchangeManager:
         self.market_types = market_types
         self.exchange = getattr(ccxt, exchange_id)()
         self.option_market_handler = OptionMarketHandler(exchange_id, market_types)
-        # self.future_market_handler = FutureMarketHandler()
+        self.future_market_handler = FutureMarketHandler(exchange_id, market_types)
         self.binance_fetcher = BinanceFetcher()
         self.options_data = pd.DataFrame()
-        self.futures_data = {}
+        self.futures_data = pd.DataFrame()
 
     def load_specific_pairs(self) -> pd.DataFrame:
         """Load and process specific pairs based on predefined filters using Pandas, with output limited to specific base market pairs.
@@ -53,6 +53,8 @@ class ExchangeManager:
                 return self.handle_market_type(data)
 
             all_markets = self.exchange.load_markets()
+            with open("all_markets.json", "w") as f:
+                json.dump(all_markets, f, indent=4)
             # Convert markets data to a pandas DataFrame for easier filtering
             markets_df = pd.DataFrame(all_markets).T  # Transpose to get markets as rows
 
@@ -102,16 +104,23 @@ class ExchangeManager:
         }
         Output will be a list of order books for the specified market type.
         """
+        print(loaded_markets)
         for pair in self.pairs_to_load:
-            if "option" in loaded_markets[pair]:
-                # x = self.options_data[pair] = self.option_market_handler.handle(
-                #     loaded_markets[pair]["option"]
-                # )
-                print(
-                    f"Length of loaded markets: {len(loaded_markets[pair]['option'])}"
-                )
-                self.options_data = self.option_market_handler.handle(
-                    loaded_markets[pair]["option"]
+            # if "option" in loaded_markets[pair]:
+            #     # x = self.options_data[pair] = self.option_market_handler.handle(
+            #     #     loaded_markets[pair]["option"]
+            #     # )
+            #     print(
+            #         f"Length of loaded markets: {len(loaded_markets[pair]['option'])}"
+            #     )
+            #     self.options_data = self.option_market_handler.handle(
+            #         loaded_markets[pair]["option"]
+            #     )
+
+            if "future" in loaded_markets[pair]:
+                print("Loading futures data")
+                self.futures_data = self.future_market_handler.handle(
+                    loaded_markets[pair]["future"]
                 )
 
         return self.options_data
