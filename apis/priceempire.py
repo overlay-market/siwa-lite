@@ -2,11 +2,11 @@ try:
     from apis.utils import get_api_key
 except ModuleNotFoundError:
     from utils import get_api_key
-from pydantic import BaseModel, ValidationError, conint, conlist, confloat, confloat
+from pydantic import BaseModel, ValidationError
 import requests
 from typing import Dict, Optional, List
 import pandas as pd
-import prometheus_metrics
+
 
 
 class Source(BaseModel):
@@ -19,7 +19,8 @@ class Source(BaseModel):
 
 class Skin(BaseModel):
     liquidity: Optional[float] = None
-    sources: Dict[str, Source] = {}
+    steam_volume: Optional[int] = None
+    cs2go: Optional[Source] = None
 
     class Config:
         extra = "allow"
@@ -52,10 +53,12 @@ class CSGOS2kins:
     PRICES_ENDPOINT = "v3/items/prices"
     PRICE_HISTORIES_ENDPOINT = "v3/items/prices/history"
     CURRENCY = "USD"
+    MAPPING_PATH = "cs2go/cs2go_mapping.csv"
     MARKET_HASH_NAME_KEY = "market_hash_name"
+    QUANTITY_MAP_KEY = "mapped_quantity"
     PRICE_KEY = "price"
     QUANTITY_KEY = "count"
-    APP_ID = 730  # Available values : 730, 440, 570, 252490
+    APP_ID = 730  # Available values : 730, 440, 570, 252490 (Steam App id)
     SOURCES = "cs2go"
     DEFAULT_BASE_URL = "https://api.pricempire.com/"
     DAYS = 7
@@ -66,7 +69,7 @@ class CSGOS2kins:
         """
         Initializes the CSGOSkins class with the base URL and API key.
 
-        Parameters:
+        Parameters: 
         ----------
         base_url : str, optional
             The base URL for the CSGOSkins API.
@@ -100,7 +103,7 @@ class CSGOS2kins:
             raise Exception(
                 f"Data pulled from {self.base_url} does not match "
                 f"pre-defined Pydantic data structure: {e}"
-            )
+            ) 
 
     def get_prices(self):
         """
@@ -144,9 +147,9 @@ class CSGOS2kins:
                 prices_list.append(prices_data)
 
         df = pd.DataFrame(prices_list)
-
+        df[self.PRICE_KEY] = df[self.PRICE_KEY] / 100  # need to check if we need this
         return df
-    
+
     def agg_data(self, df):
         """
         Aggregates the data of a given DataFrame by 'market_hash_name',
@@ -162,6 +165,8 @@ class CSGOS2kins:
         pd.DataFrame
             A DataFrame containing the aggregated data.
         """
+        df = df.dropna(subset=[self.PRICE_KEY, self.QUANTITY_KEY])
+
         df = (
             df.groupby(self.MARKET_HASH_NAME_KEY)[self.PRICE_KEY, self.QUANTITY_KEY]
             .agg(
@@ -174,10 +179,13 @@ class CSGOS2kins:
         #     prometheus_metrics.csgo_price_gauge.labels(
         #         market_hash_name=row["market_hash_name"]
         #     ).set(row["price"]) # TODO: Fix this
+        df.to_csv(self.MAPPING_PATH, index=False)
         return df
 
 
 if __name__ == "__main__":
     csgo2 = CSGOS2kins()
-    data = csgo2.get_prices_df()
-    print(csgo2.agg_data(data))
+    data = csgo2.get_prices()
+    df = csgo2.get_prices_df()
+    df = csgo2.agg_data(df)
+    print(df)
