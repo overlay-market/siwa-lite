@@ -6,6 +6,7 @@ from apis.unisat import UnisatAPI
 
 class NodeMonkes(DataFeed):
     NAME = 'node_monkes'
+    ID = 0
     HEARTBEAT = 180
     DATAPOINT_DEQUE = deque([], maxlen=100)
 
@@ -19,6 +20,7 @@ class NodeMonkes(DataFeed):
         '''
         node_monkes_data = UnisatAPI().get_collection_stats(cls.COLLECTION_ID).json()["data"]
         floor_price = node_monkes_data[cls.FLOOR_PX]
+        print(floor_price)
         return floor_price
 
     @classmethod
