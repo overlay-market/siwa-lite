@@ -98,6 +98,10 @@ class UnisatAPI:
     def get_transferable_inscriptions(self, address, ticker):
         return self._make_request(f'address/{address}/brc20/{ticker}/transferable-inscriptions')
     
+    def get_collection_stats(self, collectionId):
+        return requests.post(url='https://open-api.unisat.io/v3/market/collection/auction/collection_statistic', headers=self.headers, json={'collectionId': collectionId})
+    
+    
 def main():
     unisat_api = UnisatAPI()
     # print(unisat_api.get_best_block_height().json())
