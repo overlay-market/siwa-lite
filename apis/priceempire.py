@@ -4,24 +4,27 @@ except ModuleNotFoundError:
     from utils import get_api_key
 from pydantic import BaseModel, ValidationError
 import requests
-from typing import Dict
+from typing import Dict, Optional
 import pandas as pd
 import numpy as np
 import prometheus_metrics as prometheus_metrics
 
 
 class Source(BaseModel):
-    isInflated: bool
-    price: int
-    count: int
-    avg30: int
-    createdAt: str
+    isInflated: Optional[bool] = None
+    price: Optional[int] = None
+    count: Optional[int] = None
+    avg30: Optional[int] = None
+    createdAt: Optional[str] = None
 
 
 class Skin(BaseModel):
-    liquidity: float
-    steam_volume: int
-    cs2go: Source
+    liquidity: Optional[float] = None
+    steam_volume: Optional[int] = None
+    cs2go: Optional[Source] = None
+
+    class Config:
+        extra = "allow"
 
 
 class CSGOS2kinsPrices(BaseModel):
@@ -52,10 +55,11 @@ class CSGOS2kins:
     QUANTITY_MAP_KEY = "mapped_quantity"
     PRICE_KEY = "price"
     QUANTITY_KEY = "count"
+    QUANTITY_KEY_MAPPING = "quantity"
     APP_ID = 730  # Available values : 730, 440, 570, 252490 (Steam App id)
     SOURCES = "cs2go"
     DEFAULT_BASE_URL = "https://api.pricempire.com/"
-    DAYS = 7
+    DAYS = 7 # Need for Histiry data 
     CONTENT_TYPE = "application/json"
     CONTENT_TYPE_KEY = "Content-Type"
 
@@ -72,7 +76,7 @@ class CSGOS2kins:
         self.api_key = get_api_key(self.API_PREFIX)
         self.headers = {self.CONTENT_TYPE_KEY: self.CONTENT_TYPE}
 
-    def validate_api_data(self, model: BaseModel, data: Dict[str, dict]):
+    def validate_api_data(self, model: BaseModel, data):
         """
         Validate data pulled from external API using Pydantic.
 
@@ -90,10 +94,12 @@ class CSGOS2kins:
 
         """
         try:
-            model(prices=data)
+            for market_hash_name, item in data.items():
+                model(prices={market_hash_name: item})
         except ValidationError as e:
             raise Exception(
-                f"Data does not match pre-defined Pydantic data structure: {e}"
+                f"Data pulled from {self.base_url} does not match "
+                f"pre-defined Pydantic data structure: {e}"
             )
 
     def get_prices(self):
@@ -137,7 +143,7 @@ class CSGOS2kins:
                 prices_list.append(prices_data)
 
         df = pd.DataFrame(prices_list)
-        df[self.PRICE_KEY] = df[self.PRICE_KEY] / 100  # need to check if we need this
+        df[self.PRICE_KEY] = df[self.PRICE_KEY] / 100
         return df
 
     def agg_data(self, df):
@@ -161,16 +167,14 @@ class CSGOS2kins:
             df.groupby(self.MARKET_HASH_NAME_KEY)[self.PRICE_KEY, self.QUANTITY_KEY]
             .agg(
                 price=pd.NamedAgg(column=self.PRICE_KEY, aggfunc="min"),
-                quantity=pd.NamedAgg(column=self.QUANTITY_KEY, aggfunc="sum"),
+                count=pd.NamedAgg(column=self.QUANTITY_KEY, aggfunc="sum"),
             )
             .reset_index()
         )
         for row in df.to_dict("records"):
             prometheus_metrics.csgo_price_gauge.labels(
                 market_hash_name=row["market_hash_name"]
-            ).set(
-                row["price"]
-            )  # TODO: Fix this
+            ).set(row["price"])
         return df
 
     def get_caps(
@@ -200,7 +204,9 @@ class CSGOS2kins:
         """
         # Get caps for each skin
         mapping = pd.read_csv(self.MAPPING_PATH, index_col=0)
-        mapping = mapping.rename(columns={self.QUANTITY_KEY: self.QUANTITY_MAP_KEY})
+        mapping = mapping.rename(
+            columns={self.QUANTITY_KEY_MAPPING: self.QUANTITY_MAP_KEY}
+        )
         if (k is None) and (upper_multiplier is None and lower_multiplier is None):
             raise ValueError("Must specify either k or upper/lower multipliers")
         if (k is not None) and (
@@ -235,7 +241,6 @@ class CSGOS2kins:
                 0,
                 mapping["lower_cap_index_share"],
             )
-        print(mapping.columns)
         return mapping
 
     def adjust_share(self, df, max_iter):
@@ -243,9 +248,10 @@ class CSGOS2kins:
         df["mean_cap_index_share"] = (
             df["lower_cap_index_share"] + df["upper_cap_index_share"]
         ) / 2
-        elements = df["mean_cap_index_share"].tolist()  # Access by name, not index
-        min_percentages = df["lower_cap_index_share"].tolist()
-        max_percentages = df["upper_cap_index_share"].tolist()
+        elements = df.iloc[:, 0].tolist()
+        min_percentages = df.loc[:, "lower_cap_index_share"].tolist()
+        max_percentages = df.loc[:, "upper_cap_index_share"].tolist()
+        mean_percentages = df.loc[:, "mean_cap_index_share"].tolist()
         max_iterations = max_iter  # setting a limit to prevent infinite loops
         iterations = 0
 
@@ -288,14 +294,14 @@ class CSGOS2kins:
             iterations += 1
 
         # Update the DataFrame
-        df["mean_cap_index_share"] = elements
+        df.iloc[:, 0] = elements
 
         return df
 
     def get_index(self, df, caps):
         # Get caps
         df = df.merge(caps, on=self.MARKET_HASH_NAME_KEY, how="inner")
-        df["index"] = df[self.PRICE_KEY] * df["quantity_y"]
+        df["index"] = df[self.PRICE_KEY] * df[self.QUANTITY_MAP_KEY]
         adjusted_df = self.adjust_share(
             df[["index", "lower_cap_index_share", "upper_cap_index_share"]],
             max_iter=1000,
@@ -312,9 +318,8 @@ class CSGOS2kins:
 if __name__ == "__main__":
     csgo2 = CSGOS2kins()
     data = csgo2.get_prices()
-    data
-    # df = csgo2.get_prices_df()
-    # df = csgo2.agg_data(df)
-    # caps = csgo2.get_caps(df, k=100)
-    # index = csgo2.get_index(df, caps)
-    # print("index: ", index)
+    df = csgo2.get_prices_df()
+    df = csgo2.agg_data(df)
+    caps = csgo2.get_caps(df, k=100)
+    index = csgo2.get_index(df, caps)
+    print("index: ", index)
