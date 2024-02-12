@@ -7,6 +7,7 @@ import requests
 from typing import Dict, Optional
 import pandas as pd
 import numpy as np
+import prometheus_metrics as prometheus_metrics
 
 
 class Source(BaseModel):
@@ -49,7 +50,7 @@ class CSGOS2kins:
     PRICES_ENDPOINT = "v3/items/prices"
     PRICE_HISTORIES_ENDPOINT = "v3/items/prices/history"
     CURRENCY = "USD"
-    MAPPING_PATH = "cs2go/cs2go_mapping.csv"
+    MAPPING_PATH = "csgo/csgo_mapping.csv"
     MARKET_HASH_NAME_KEY = "market_hash_name"
     QUANTITY_MAP_KEY = "mapped_quantity"
     PRICE_KEY = "price"
@@ -160,7 +161,7 @@ class CSGOS2kins:
         pd.DataFrame
             A DataFrame containing the aggregated data.
         """
-        df = df.dropna(subset=[self.PRICE_KEY, self.QUANTITY_KEY])
+        # df = df.dropna(subset=[self.PRICE_KEY, self.QUANTITY_KEY])
 
         df = (
             df.groupby(self.MARKET_HASH_NAME_KEY)[self.PRICE_KEY, self.QUANTITY_KEY]
@@ -170,13 +171,12 @@ class CSGOS2kins:
             )
             .reset_index()
         )
-        # for row in df.to_dict("records"):
-        #     prometheus_metrics.csgo_price_gauge.labels(
-        #         market_hash_name=row["market_hash_name"]
-        #     ).set(row["price"]) # TODO: Fix this
-        df["avg_index_share"] = df["price"] / df["quantity"]
-        df["std_index_share"] = df["avg_index_share"].std()
-        df.to_csv(self.MAPPING_PATH, index=False)
+        for row in df.to_dict("records"):
+            prometheus_metrics.csgo_price_gauge.labels(
+                market_hash_name=row["market_hash_name"]
+            ).set(
+                row["price"]
+            )  # TODO: Fix this
         return df
 
     def get_caps(
@@ -300,7 +300,7 @@ class CSGOS2kins:
     def get_index(self, df, caps):
         # Get caps
         df = df.merge(caps, on=self.MARKET_HASH_NAME_KEY, how="inner")
-        df["index"] = df["price_x"] * df["quantity_x"]
+        df["index"] = df[self.PRICE_KEY] * df["quantity_y"]
         adjusted_df = self.adjust_share(
             df[["index", "lower_cap_index_share", "upper_cap_index_share"]],
             max_iter=1000,
@@ -310,7 +310,7 @@ class CSGOS2kins:
 
         # Set prometheus metric to index
         print(f"Set prometheus metric to index {index}")
-        # prometheus_metrics.csgo_index_gauge.set(index)
+        prometheus_metrics.csgo_index_gauge.set(index)
         return index
 
 
@@ -318,10 +318,7 @@ if __name__ == "__main__":
     csgo2 = CSGOS2kins()
     data = csgo2.get_prices()
     df = csgo2.get_prices_df()
-    print(df)
     df = csgo2.agg_data(df)
-    print(df)
     caps = csgo2.get_caps(df, k=100)
-    print("Caps: ", df)
     index = csgo2.get_index(df, caps)
-    print("index: ", df)
+    print("index: ", index)
