@@ -9,7 +9,6 @@ import pandas as pd
 import numpy as np
 import prometheus_metrics as prometheus_metrics
 
-
 class Source(BaseModel):
     isInflated: Optional[bool] = None
     price: Optional[int] = None
@@ -112,11 +111,10 @@ class CSGOS2kins:
         """
         url = self.base_url + self.PRICES_ENDPOINT
         payload = {
-            "source": self.SOURCES,
-            "days": self.DAYS,
-            "app_id": self.APP_ID,
-            "currency": self.CURRENCY,
             "api_key": self.api_key,
+            "currency": self.CURRENCY,
+            "appId": self.APP_ID,
+            "sources": self.SOURCES,
         }
         response = requests.get(url, headers=self.headers, params=payload)
         data = response.json()
@@ -241,6 +239,7 @@ class CSGOS2kins:
                 0,
                 mapping["lower_cap_index_share"],
             )
+        print(mapping.columns)
         return mapping
 
     def adjust_share(self, df, max_iter):
