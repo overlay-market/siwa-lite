@@ -59,7 +59,7 @@ class CSGOS2kins:
     APP_ID = 730  # Available values : 730, 440, 570, 252490 (Steam App id)
     SOURCES = "cs2go"
     DEFAULT_BASE_URL = "https://api.pricempire.com/"
-    DAYS = 7 # Need for Histiry data 
+    DAYS = 7 # Need for History data 
     CONTENT_TYPE = "application/json"
     CONTENT_TYPE_KEY = "Content-Type"
 
