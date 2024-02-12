@@ -4,7 +4,7 @@ except ModuleNotFoundError:
     from utils import get_api_key
 from pydantic import BaseModel, ValidationError
 import requests
-from typing import Dict, Optional
+from typing import Dict, Optional, List
 import pandas as pd
 import numpy as np
 import prometheus_metrics as prometheus_metrics
