@@ -4,26 +4,24 @@ except ModuleNotFoundError:
     from utils import get_api_key
 from pydantic import BaseModel, ValidationError
 import requests
-from typing import Dict, Optional
+from typing import Dict
 import pandas as pd
 import numpy as np
 import prometheus_metrics as prometheus_metrics
 
+
 class Source(BaseModel):
-    isInflated: Optional[bool] = None
-    price: Optional[int] = None
-    count: Optional[int] = None
-    avg30: Optional[int] = None
-    createdAt: Optional[str] = None
+    isInflated: bool
+    price: int
+    count: int
+    avg30: int
+    createdAt: str
 
 
 class Skin(BaseModel):
-    liquidity: Optional[float] = None
-    steam_volume: Optional[int] = None
-    cs2go: Optional[Source] = None
-
-    class Config:
-        extra = "allow"
+    liquidity: float
+    steam_volume: int
+    cs2go: Source
 
 
 class CSGOS2kinsPrices(BaseModel):
@@ -74,7 +72,7 @@ class CSGOS2kins:
         self.api_key = get_api_key(self.API_PREFIX)
         self.headers = {self.CONTENT_TYPE_KEY: self.CONTENT_TYPE}
 
-    def validate_api_data(self, model: BaseModel, data):
+    def validate_api_data(self, model: BaseModel, data: Dict[str, dict]):
         """
         Validate data pulled from external API using Pydantic.
 
@@ -92,12 +90,10 @@ class CSGOS2kins:
 
         """
         try:
-            for market_hash_name, item in data.items():
-                model(prices={market_hash_name: item})
+            model(prices=data)
         except ValidationError as e:
             raise Exception(
-                f"Data pulled from {self.base_url} does not match "
-                f"pre-defined Pydantic data structure: {e}"
+                f"Data does not match pre-defined Pydantic data structure: {e}"
             )
 
     def get_prices(self):
@@ -316,8 +312,9 @@ class CSGOS2kins:
 if __name__ == "__main__":
     csgo2 = CSGOS2kins()
     data = csgo2.get_prices()
-    df = csgo2.get_prices_df()
-    df = csgo2.agg_data(df)
-    caps = csgo2.get_caps(df, k=100)
-    index = csgo2.get_index(df, caps)
-    print("index: ", index)
+    data
+    # df = csgo2.get_prices_df()
+    # df = csgo2.agg_data(df)
+    # caps = csgo2.get_caps(df, k=100)
+    # index = csgo2.get_index(df, caps)
+    # print("index: ", index)
