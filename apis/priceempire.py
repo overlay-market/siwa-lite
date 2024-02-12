@@ -31,6 +31,10 @@ class CSGOS2kinsPrices(BaseModel):
     prices: Dict[str, Skin]
 
 
+class PriceHistory(BaseModel):
+    item_name: str
+    prices: List[int]
+
 class CSGOS2kins:
     """
     A class to interact with the CSGOSkins API to fetch and process skin
