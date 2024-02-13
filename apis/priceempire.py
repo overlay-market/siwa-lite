@@ -7,7 +7,7 @@ import requests
 from typing import Dict, Optional, List
 import pandas as pd
 import numpy as np
-import prometheus_metrics as prometheus_metrics
+import prometheus_metrics
 
 
 class Source(BaseModel):
@@ -80,31 +80,31 @@ class CSGOS2kins:
         self.api_key = get_api_key(self.API_PREFIX)
         self.headers = {self.CONTENT_TYPE_KEY: self.CONTENT_TYPE}
 
-    def validate_api_data(self, model: BaseModel, data):
-        """
-        Validate data pulled from external API using Pydantic.
+    # def validate_api_data(self, model: BaseModel, data):
+    #     """
+    #     Validate data pulled from external API using Pydantic.
 
-        Parameters:
-        -----------
-        model : pydantic.BaseModel
-            The Pydantic model to validate against.
-        data : dict
-            The data pulled from the API.
+    #     Parameters:
+    #     -----------
+    #     model : pydantic.BaseModel
+    #         The Pydantic model to validate against.
+    #     data : dict
+    #         The data pulled from the API.
 
-        Raises:
-        -------
-        Exception
-            If the data does not match the pre-defined Pydantic data structure.
+    #     Raises:
+    #     -------
+    #     Exception
+    #         If the data does not match the pre-defined Pydantic data structure.
 
-        """
-        try:
-            for market_hash_name, item in data.items():
-                model(prices={market_hash_name: item})
-        except ValidationError as e:
-            raise Exception(
-                f"Data pulled from {self.base_url} does not match "
-                f"pre-defined Pydantic data structure: {e}"
-            )
+    #     """
+    #     try:
+    #         for market_hash_name, item in data.items():
+    #             model(prices={market_hash_name: item})
+    #     except ValidationError as e:
+    #         raise Exception(
+    #             f"Data pulled from {self.base_url} does not match "
+    #             f"pre-defined Pydantic data structure: {e}"
+    #         )
 
     def get_prices(self):
         """
@@ -124,7 +124,7 @@ class CSGOS2kins:
         }
         response = requests.get(url, headers=self.headers, params=payload)
         data = response.json()
-        #self.validate_api_data(CSGOS2kinsPrices, data)
+        # self.validate_api_data(CSGOS2kinsPrices, data)
         return data
 
     def get_prices_df(self):
@@ -165,7 +165,6 @@ class CSGOS2kins:
         pd.DataFrame
             A DataFrame containing the aggregated data.
         """
-        # df = df.dropna(subset=[self.PRICE_KEY, self.QUANTITY_KEY])
 
         df = (
             df.groupby(self.MARKET_HASH_NAME_KEY)[self.PRICE_KEY, self.QUANTITY_KEY]
@@ -304,20 +303,20 @@ class CSGOS2kins:
 
     def get_index(self, df, caps):
         # Get caps
-        df = df.merge(caps, on=self.MARKET_HASH_NAME_KEY, how="inner")
-        df["index"] = df[self.PRICE_KEY] * df[self.QUANTITY_MAP_KEY]
-        adjusted_df = self.adjust_share(
-            df[["index", "lower_cap_index_share", "upper_cap_index_share"]],
-            max_iter=1000,
-        )
-        index = adjusted_df["index"].sum()
-        # index = self.cap_compared_to_prev(index)
+        df = df.merge(caps, on=self.MARKET_HASH_NAME_KEY, how='inner')
+        df['index'] = df[self.PRICE_KEY] * df[self.QUANTITY_MAP_KEY]
 
-        # Set prometheus metric to index
-        print(f"Set prometheus metric to index {index}")
+        adjusted_df = self.adjust_share(
+            df[['index', 'lower_cap_index_share', 'upper_cap_index_share']],
+            max_iter=1000
+        )
+        index = adjusted_df['index'].sum()
+        # # index = self.cap_compared_to_prev(index)
+
+        # # Set prometheus metric to index
+        print(f'Set prometheus metric to index {index}')
         prometheus_metrics.csgo_index_gauge.set(index)
         return index
-
 
 if __name__ == "__main__":
     csgo2 = CSGOS2kins()
