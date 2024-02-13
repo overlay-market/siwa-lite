@@ -59,7 +59,7 @@ class CSGOSkins:
     PRICE_HISTORIES_ENDPOINT = 'api/v1/price-histories'
     PRICE_HISTORIES_RPM = 20
     DEFAULT_BASE_URL = 'https://csgoskins.gg/'
-    MAPPING_PATH = 'apis/csgo/csgo_mapping.csv'
+    MAPPING_PATH = 'apis/csgo/csgo_mapping.csv' #TODO: Change to relative to absolute path
     DEFAULT_RANGE = 'current'
     DEFAULT_AGG = 'max'
     AUTH_TYPE = 'Bearer'
@@ -344,4 +344,5 @@ if __name__ == '__main__':
     df = csgo.agg_data(df)
     caps = csgo.get_caps(df, k=100)
     index = csgo.get_index(df, caps)
+    breakpoint()
     print('index: ', index)

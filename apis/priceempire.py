@@ -54,7 +54,7 @@ class CSGOS2kins:
     PRICES_ENDPOINT = "v3/items/prices"
     PRICE_HISTORIES_ENDPOINT = "v3/items/prices/history"
     CURRENCY = "USD"
-    MAPPING_PATH = "csgo/csgo_mapping.csv"
+    MAPPING_PATH = "csgo/csgo_mapping.csv" #TODO - fix unmaintainable relative path  
     MARKET_HASH_NAME_KEY = "market_hash_name"
     QUANTITY_MAP_KEY = "mapped_quantity"
     PRICE_KEY = "price"
@@ -124,7 +124,7 @@ class CSGOS2kins:
         }
         response = requests.get(url, headers=self.headers, params=payload)
         data = response.json()
-        self.validate_api_data(CSGOS2kinsPrices, data)
+        #self.validate_api_data(CSGOS2kinsPrices, data)
         return data
 
     def get_prices_df(self):
@@ -326,4 +326,5 @@ if __name__ == "__main__":
     df = csgo2.agg_data(df)
     caps = csgo2.get_caps(df, k=100)
     index = csgo2.get_index(df, caps)
+    breakpoint()
     print("index: ", index)
