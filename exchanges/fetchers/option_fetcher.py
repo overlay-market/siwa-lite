@@ -25,36 +25,41 @@ class OptionFetcher:
 
         try:
             all_tickers = exchange.fetch_tickers(market_symbols)
+            with open("all_tickers.json", "w") as f:
+                json.dump(all_tickers, f)
             for symbol, ticker in all_tickers.items():
                 info = ticker.get("info", {})
-                bid = ticker.get("bid", 0) if ticker.get("bid") is not None else 0
-                ask = ticker.get("ask", 0) if ticker.get("ask") is not None else 0
-                mark_price = float(info.get("mark_price", 0))
+                bid_raw = ticker.get("bid", 0) if ticker.get("bid") is not None else 0
+                ask_raw = ticker.get("ask", 0) if ticker.get("ask") is not None else 0
+                underlying_price = float(info.get("underlying_price", 0))
+                bid = bid_raw * underlying_price
+                ask = ask_raw * underlying_price
+                mark_price_raw = float(info.get("mark_price", 0))
+                mark_price = mark_price_raw * underlying_price
                 timestamp = ticker.get("timestamp", 0)
                 datetime = pd.to_datetime(timestamp, unit="ms")
                 expiry = self.date_parser(symbol)
                 YTM = (expiry - datetime) / np.timedelta64(1, "Y")
-                underlying_price = float(info.get("underlying_price", 0))
                 estimated_delivery_price = float(
                     info.get("estimated_delivery_price", 0)
                 )
 
                 data_dict = {
                     "symbol": symbol,
+                    "bid_btc": bid_raw,
+                    "ask_btc": ask_raw,
+                    "underlying_price": underlying_price,
                     "bid": bid,
                     "ask": ask,
+                    "mark_price_btc": mark_price_raw,
                     "mark_price": mark_price,
                     "timestamp": timestamp,
                     "datetime": datetime,
                     "expiry": expiry,
                     "YTM": YTM,
                     "forward_price": estimated_delivery_price,
-                    "underlying_price": underlying_price,
                 }
                 data_list.append(data_dict)
-
-            with open("deribit_raw_data.json", "w") as f:
-                json.dump(all_tickers, f, indent=4)
 
         except Exception as e:
             logging.error(f"Error fetching tickers: {e}")
