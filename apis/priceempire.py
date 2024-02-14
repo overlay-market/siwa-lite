@@ -27,15 +27,16 @@ class Skin(BaseModel):
         extra = "allow"
 
 
-class CSGOS2kinsPrices(BaseModel):
-    prices: Dict[str, Skin]
+class PriceEmpirePrices(BaseModel):
+    data: Dict[str, Skin]
 
 
 class PriceHistory(BaseModel):
     item_name: str
     prices: List[int]
 
-class CSGOS2kins:
+
+class PriceEmpire:
     """
     A class to interact with the CSGOSkins API to fetch and process skin
     prices.
@@ -63,7 +64,7 @@ class CSGOS2kins:
     APP_ID = 730  # Available values : 730, 440, 570, 252490 (Steam App id)
     SOURCES = "cs2go"
     DEFAULT_BASE_URL = "https://api.pricempire.com/"
-    DAYS = 7 # Need for History data 
+    DAYS = 7  # Need for History data
     CONTENT_TYPE = "application/json"
     CONTENT_TYPE_KEY = "Content-Type"
 
@@ -80,31 +81,31 @@ class CSGOS2kins:
         self.api_key = get_api_key(self.API_PREFIX)
         self.headers = {self.CONTENT_TYPE_KEY: self.CONTENT_TYPE}
 
-    # def validate_api_data(self, model: BaseModel, data):
-    #     """
-    #     Validate data pulled from external API using Pydantic.
+    def validate_api_data(self, model: BaseModel, data):
+        """
+        Validate data pulled from external API using Pydantic.
 
-    #     Parameters:
-    #     -----------
-    #     model : pydantic.BaseModel
-    #         The Pydantic model to validate against.
-    #     data : dict
-    #         The data pulled from the API.
+        Parameters:
+        -----------
+        model : pydantic.BaseModel
+            The Pydantic model to validate against.
+        data : dict
+            The data pulled from the API.
 
-    #     Raises:
-    #     -------
-    #     Exception
-    #         If the data does not match the pre-defined Pydantic data structure.
+        Raises:
+        -------
+        Exception
+            If the data does not match the pre-defined Pydantic data structure.
 
-    #     """
-    #     try:
-    #         for market_hash_name, item in data.items():
-    #             model(prices={market_hash_name: item})
-    #     except ValidationError as e:
-    #         raise Exception(
-    #             f"Data pulled from {self.base_url} does not match "
-    #             f"pre-defined Pydantic data structure: {e}"
-    #         )
+        """
+        try:
+            for market_hash_name, item in data.items():
+                model(data={market_hash_name: item})
+        except ValidationError as e:
+            raise Exception(
+                f"Data pulled from {self.base_url} does not match "
+                f"pre-defined Pydantic data structure: {e}"
+            )
 
     def get_prices(self):
         """
@@ -124,7 +125,7 @@ class CSGOS2kins:
         }
         response = requests.get(url, headers=self.headers, params=payload)
         data = response.json()
-        # self.validate_api_data(CSGOS2kinsPrices, data)
+        self.validate_api_data(PriceEmpirePrices, data)
         return data
 
     def get_prices_df(self):
@@ -167,7 +168,8 @@ class CSGOS2kins:
         """
 
         df = (
-            df.groupby(self.MARKET_HASH_NAME_KEY)[self.PRICE_KEY, self.QUANTITY_KEY]
+            df.groupby(self.MARKET_HASH_NAME_KEY)[
+                self.PRICE_KEY, self.QUANTITY_KEY]
             .agg(
                 price=pd.NamedAgg(column=self.PRICE_KEY, aggfunc="min"),
                 count=pd.NamedAgg(column=self.QUANTITY_KEY, aggfunc="sum"),
@@ -211,11 +213,13 @@ class CSGOS2kins:
             columns={self.QUANTITY_KEY_MAPPING: self.QUANTITY_MAP_KEY}
         )
         if (k is None) and (upper_multiplier is None and lower_multiplier is None):
-            raise ValueError("Must specify either k or upper/lower multipliers")
+            raise ValueError(
+                "Must specify either k or upper/lower multipliers")
         if (k is not None) and (
             upper_multiplier is not None or lower_multiplier is not None
         ):
-            raise ValueError("Cannot specify both k and upper/lower multipliers")
+            raise ValueError(
+                "Cannot specify both k and upper/lower multipliers")
         if upper_multiplier is not None and lower_multiplier is None:
             mapping["upper_cap_index_share"] = (
                 mapping["avg_index_share"]
@@ -247,7 +251,21 @@ class CSGOS2kins:
         return mapping
 
     def adjust_share(self, df, max_iter):
-        # Initialize
+        """
+        Adjusts the share of each element in the DataFrame to ensure they fall within the specified upper and lower caps.
+
+        Parameters:
+        ----------
+        df : pd.DataFrame
+            The input DataFrame containing the data to adjust.
+        max_iter : int
+            Maximum number of iterations for adjusting shares.
+
+        Returns:
+        -------
+        pd.DataFrame
+            DataFrame with adjusted shares.
+        """
         df["mean_cap_index_share"] = (
             df["lower_cap_index_share"] + df["upper_cap_index_share"]
         ) / 2
@@ -286,10 +304,12 @@ class CSGOS2kins:
             most_deviating_index = sorted_indices[0]
             if deviations[most_deviating_index] < 0:
                 # Below the acceptable range
-                target_value = min_percentages[most_deviating_index] * sum_elements
+                target_value = min_percentages[most_deviating_index] * \
+                    sum_elements
             else:
                 # Above the acceptable range
-                target_value = max_percentages[most_deviating_index] * sum_elements
+                target_value = max_percentages[most_deviating_index] * \
+                    sum_elements
 
             # Update the value in elements list
             elements[most_deviating_index] = target_value
@@ -302,26 +322,41 @@ class CSGOS2kins:
         return df
 
     def get_index(self, df, caps):
-        # Get caps
-        df = df.merge(caps, on=self.MARKET_HASH_NAME_KEY, how='inner')
-        df['index'] = df[self.PRICE_KEY] * df[self.QUANTITY_MAP_KEY]
+        """
+        Calculates the index based on the prices and quantities of items, adjusting shares based on caps.
+
+        Parameters:
+        ----------
+        df : pd.DataFrame
+            The DataFrame containing prices and quantities of items.
+        caps : pd.DataFrame
+            DataFrame containing caps for each item.
+
+        Returns:
+        -------
+        float
+            The calculated index value.
+        """
+        df = df.merge(caps, on=self.MARKET_HASH_NAME_KEY, how="inner")
+        df["index"] = df[self.PRICE_KEY] * df[self.QUANTITY_MAP_KEY]
 
         adjusted_df = self.adjust_share(
-            df[['index', 'lower_cap_index_share', 'upper_cap_index_share']],
-            max_iter=1000
+            df[["index", "lower_cap_index_share", "upper_cap_index_share"]],
+            max_iter=1000,
         )
-        index = adjusted_df['index'].sum()
+        index = adjusted_df["index"].sum()
         # # index = self.cap_compared_to_prev(index)
 
         # # Set prometheus metric to index
-        print(f'Set prometheus metric to index {index}')
+        print(f"Set prometheus metric to index {index}")
         prometheus_metrics.csgo_index_gauge.set(index)
         return index
 
+
 if __name__ == "__main__":
-    csgo2 = CSGOS2kins()
-    data = csgo2.get_prices()
-    df = csgo2.get_prices_df()
-    df = csgo2.agg_data(df)
-    caps = csgo2.get_caps(df, k=100)
-    index = csgo2.get_index(df, caps)
+    pe = PriceEmpire()
+    data = pe.get_prices()
+    df = pe.get_prices_df()
+    df = pe.agg_data(df)
+    caps = pe.get_caps(df, k=100)
+    index = pe.get_index(df, caps)
