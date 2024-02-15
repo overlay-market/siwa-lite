@@ -5,6 +5,38 @@ import prometheus_metrics
 
 
 class BaseAPI:
+    """
+    Base class for API operations.
+
+    Attributes:
+    -----------
+    PRICE_KEY : str
+        Key for price in the DataFrame.
+    MAPPING_PATH : str
+        Path to the CSV file containing the mapping.
+    QUANTITY_MAP_KEY : str
+        Key for the mapped quantity in the DataFrame.
+    QUANTITY_KEY : str
+        Key for quantity in the DataFrame.
+    MARKET_HASH_NAME_KEY : str
+        Key for market hash name in the DataFrame.
+    CONTENT_TYPE_KEY : str
+        Key for content type in the request header.
+    CONTENT_TYPE : str
+        Value for content type in the request header.
+
+    Methods:
+    --------
+    __init__(base_url: Optional[str] = None)
+        Initializes the BaseAPI object with a base URL.
+    get_caps(mapping: pd.DataFrame, k: float = None, upper_multiplier: float = None, lower_multiplier: float = None)
+        Retrieves caps for each skin in the mapping DataFrame.
+    adjust_share(self, df, max_iter)
+        Adjusts the share of each element within the dataframe to ensure they fall within the specified range.
+    get_index(self, df, caps)
+        Derives the index for each skin in the DataFrame based on caps.
+    """
+
     PRICE_KEY = "price"
     MAPPING_PATH = "csgo/csgo_mapping.csv"
     QUANTITY_MAP_KEY = "mapped_quantity"
@@ -81,7 +113,21 @@ class BaseAPI:
         return mapping
 
     def adjust_share(self, df, max_iter):
-        # Initialize
+        """
+        Adjusts the share of each element within the dataframe to ensure they fall within the specified range.
+
+        Parameters:
+        ----------
+        df : pd.DataFrame
+            The input DataFrame containing index shares and their upper and lower bounds.
+        max_iter : int
+            Maximum number of iterations to adjust shares.
+
+        Returns:
+        -------
+        pd.DataFrame
+            DataFrame with adjusted shares.
+        """
         df["mean_cap_index_share"] = (
             df["lower_cap_index_share"] + df["upper_cap_index_share"]
         ) / 2
@@ -136,7 +182,21 @@ class BaseAPI:
         return df
 
     def get_index(self, df, caps):
-        # Get caps
+        """
+        Derives the index for each skin in the DataFrame based on caps.
+
+        Parameters:
+        ----------
+        df : pd.DataFrame
+            DataFrame containing skins and their corresponding price and quantity map.
+        caps : pd.DataFrame
+            DataFrame containing caps for each skin.
+
+        Returns:
+        -------
+        float
+            Calculated index value.
+        """
         df = df.merge(caps, on=self.MARKET_HASH_NAME_KEY, how="inner")
         df["index"] = df[self.PRICE_KEY] * df[self.QUANTITY_MAP_KEY]
         adjusted_df = self.adjust_share(

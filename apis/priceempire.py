@@ -38,8 +38,10 @@ class PriceHistory(BaseModel):
 
 class PriceEmpire(BaseAPI):
     """
-    A class to interact with the CSGOSkins API to fetch and process skin
-    prices.
+    A class to interact with the CSGOSkins API to fetch and process skin prices.
+
+    Inherits from:
+        BaseAPI: Base class for API operations.
 
     Attributes:
     ----------
@@ -49,6 +51,19 @@ class PriceEmpire(BaseAPI):
         The base URL for the CSGOSkins API.
     api_key : str
         The API key to authenticate with the CSGOSkins API.
+
+    Methods:
+    --------
+    __init__():
+        Initializes the CSGOSkins class with the base URL and API key.
+    validate_api_data(model: BaseModel, data):
+        Validate data pulled from external API using Pydantic.
+    get_prices(range=DEFAULT_RANGE, agg=DEFAULT_AGG):
+        Fetches the current prices of CSGO skins from the API.
+    get_prices_df(range=DEFAULT_RANGE, agg=DEFAULT_AGG):
+        Fetches the prices of CSGO skins and returns them as a pandas DataFrame.
+    agg_data(df):
+        Aggregates the data of a given DataFrame by 'market_hash_name'.
     """
 
     API_PREFIX = "PRICE_EMPIRE"
