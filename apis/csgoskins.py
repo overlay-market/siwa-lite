@@ -1,18 +1,17 @@
+from typing import Optional, Dict, List
 import pandas as pd
 import numpy as np
 import requests
+from pydantic import BaseModel, ValidationError
+from web3 import Web3
+import json
+from base_skin_api import BaseAPI
+import prometheus_metrics
 
 try:
     from apis.utils import get_api_key
 except ModuleNotFoundError:
     from utils import get_api_key
-from pydantic import BaseModel, ValidationError
-from typing import Dict, List, Optional
-from web3 import Web3
-import json
-from base_skin_api import BaseAPI
-
-import prometheus_metrics
 
 
 class CSGOSkinsPrice(BaseModel):
@@ -74,25 +73,25 @@ class CSGOSkins(BaseAPI):
         Caps the index to be within 5% of the previous index.
     """
 
-    API_PREFIX = "CSGO"
-    PRICES_ENDPOINT = "api/v1/prices"
-    PRICE_HISTORIES_ENDPOINT = "api/v1/price-histories"
-    PRICE_HISTORIES_RPM = 20
-    DEFAULT_BASE_URL = "https://csgoskins.gg/"
-    DEFAULT_RANGE = "current"
-    DEFAULT_AGG = "max"
-    AUTH_TYPE = "Bearer"
-    RANGE_KEY = "range"
-    AGGREGATOR_KEY = "aggregator"
-    DATA_KEY = "data"
-    PRICES_KEY = "prices"
-    AUTHORIZATION_KEY = "Authorization"
-    GOERLI_URL = "https://goerli.infura.io/v3/"
-    INFURA_PREFIX = "INFURA"
-    CONTRACT_ADD_FILE = "apis/csgo/contract_address.txt"
-    ABI_FILE = "apis/csgo/abi.json"
+    API_PREFIX: str = "CSGO"
+    PRICES_ENDPOINT: str = "api/v1/prices"
+    PRICE_HISTORIES_ENDPOINT: str = "api/v1/price-histories"
+    PRICE_HISTORIES_RPM: int = 20
+    DEFAULT_BASE_URL: str = "https://csgoskins.gg/"
+    DEFAULT_RANGE: str = "current"
+    DEFAULT_AGG: str = "max"
+    AUTH_TYPE: str = "Bearer"
+    RANGE_KEY: str = "range"
+    AGGREGATOR_KEY: str = "aggregator"
+    DATA_KEY: str = "data"
+    PRICES_KEY: str = "prices"
+    AUTHORIZATION_KEY: str = "Authorization"
+    GOERLI_URL: str = "https://goerli.infura.io/v3/"
+    INFURA_PREFIX: str = "INFURA"
+    CONTRACT_ADD_FILE: str = "apis/csgo/contract_address.txt"
+    ABI_FILE: str = "apis/csgo/abi.json"
 
-    def __init__(self):
+    def __init__(self) -> None:
         """
         Initializes the CSGOSkins class with the base URL and API key.
 
@@ -104,16 +103,15 @@ class CSGOSkins(BaseAPI):
             The API key to authenticate with the CSGOSkins API.
         """
         super().__init__(base_url=self.DEFAULT_BASE_URL)
-        self.api_key = get_api_key(self.API_PREFIX)
+        self.api_key: str = get_api_key(self.API_PREFIX)
         self.infura_key = get_api_key(self.INFURA_PREFIX)
-        self.headers = {
+        self.headers: Dict[str, str] = {
             self.AUTHORIZATION_KEY: f"{self.AUTH_TYPE} {self.api_key}",
             self.CONTENT_TYPE_KEY: self.CONTENT_TYPE,
         }
-        # Init web3
-        self.w3 = Web3(Web3.HTTPProvider(self.GOERLI_URL + self.infura_key))
+        self.w3: Web3 = Web3(Web3.HTTPProvider(self.GOERLI_URL + self.infura_key))
 
-    def validate_api_data(self, model: BaseModel, data):
+    def validate_api_data(self, model: BaseModel, data) -> None:
         """Validate data pulled from external API using Pydantic."""
         try:
             for item in data:
@@ -124,7 +122,7 @@ class CSGOSkins(BaseAPI):
                 f"pre-defined Pydantic data structure: {e}"
             )
 
-    def get_prices(self, range=DEFAULT_RANGE, agg=DEFAULT_AGG):
+    def get_prices(self, range: str = DEFAULT_RANGE, agg: str = DEFAULT_AGG) -> dict:
         """
         Fetches the current prices of CSGO skins from the API.
 
@@ -141,14 +139,16 @@ class CSGOSkins(BaseAPI):
         dict
             A dictionary containing the fetched data from the API.
         """
-        url = self.base_url + self.PRICES_ENDPOINT
-        payload = {self.RANGE_KEY: range, self.AGGREGATOR_KEY: agg}
-        response = requests.request("GET", url, headers=self.headers, json=payload)
-        data = response.json()
+        url: str = self.base_url + self.PRICES_ENDPOINT
+        payload: dict = {self.RANGE_KEY: range, self.AGGREGATOR_KEY: agg}
+        response: requests.Response = requests.request(
+            "GET", url, headers=self.headers, json=payload
+        )
+        data: dict = response.json()
         self.validate_api_data(CSGOSkinsPrices, data["data"])
         return data
 
-    def get_prices_df(self, range=DEFAULT_RANGE, agg=DEFAULT_AGG):
+    def get_prices_df(self) -> pd.DataFrame:
         """
         Fetches the prices of CSGO skins and returns them as a pandas
         DataFrame.
@@ -166,8 +166,8 @@ class CSGOSkins(BaseAPI):
         pd.DataFrame
             A DataFrame containing the fetched data from the API.
         """
-        data = self.get_prices()
-        df = pd.json_normalize(
+        data: dict = self.get_prices()
+        df: pd.DataFrame = pd.json_normalize(
             data[self.DATA_KEY],
             record_path=self.PRICES_KEY,
             meta=self.MARKET_HASH_NAME_KEY,
@@ -175,7 +175,7 @@ class CSGOSkins(BaseAPI):
         df[self.PRICE_KEY] = df[self.PRICE_KEY] / 100
         return df
 
-    def agg_data(self, df):
+    def agg_data(self, df: pd.DataFrame) -> pd.DataFrame:
         """
         Aggregates the data of a given DataFrame by 'market_hash_name',
         computing the minimum price and total quantity for each group.
@@ -204,13 +204,15 @@ class CSGOSkins(BaseAPI):
             ).set(row["price"])
         return df
 
-    def cap_compared_to_prev(self, index):
+    def cap_compared_to_prev(self, index: float) -> float:
         """
         Caps the index to be within 5% of the previous index.
+
         Parameters:
         ----------
         index : float
             The current index.
+
         Returns:
         -------
         float
@@ -219,15 +221,15 @@ class CSGOSkins(BaseAPI):
         # Read answer from chainlink contract using web3py
         # Get contract address from file
         with open(self.CONTRACT_ADD_FILE) as f:
-            contract_address = f.read()
+            contract_address: str = f.read()
         # Read contract abi from file
         with open(self.ABI_FILE) as f:
-            abi = json.load(f)
+            abi: dict = json.load(f)
         # Init contract
         contract = self.w3.eth.contract(address=contract_address, abi=abi)
         # Get answer
-        prev_index = contract.functions.latestAnswer().call()
-        decimals = contract.functions.decimals().call()
+        prev_index: float = contract.functions.latestAnswer().call()
+        decimals: int = contract.functions.decimals().call()
         prev_index = prev_index / 10**decimals
         # If prev_index more/less by 5% of index, cap current index at 5% move
         if index < prev_index * 0.95:
@@ -239,9 +241,9 @@ class CSGOSkins(BaseAPI):
 
 if __name__ == "__main__":
     csgo = CSGOSkins()
-    data = csgo.get_prices()
-    df = csgo.get_prices_df()
-    df = csgo.agg_data(df)
-    caps = csgo.get_caps(df, k=100)
-    index = csgo.get_index(df, caps)
+    data: dict = csgo.get_prices()
+    df: pd.DataFrame = csgo.get_prices_df()
+    df: pd.DataFrame = csgo.agg_data(df)
+    caps: pd.DataFrame = csgo.get_caps(df, k=100)
+    index: float = csgo.get_index(df, caps)
     print("index: ", index)

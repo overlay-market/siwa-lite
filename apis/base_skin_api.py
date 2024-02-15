@@ -29,32 +29,33 @@ class BaseAPI:
     --------
     __init__(base_url: Optional[str] = None)
         Initializes the BaseAPI object with a base URL.
-    get_caps(mapping: pd.DataFrame, k: float = None, upper_multiplier: float = None, lower_multiplier: float = None)
+    get_caps(mapping: pd.DataFrame, k: float = None, upper_multiplier: float = None, lower_multiplier: float = None) -> pd.DataFrame
         Retrieves caps for each skin in the mapping DataFrame.
-    adjust_share(self, df, max_iter)
+    adjust_share(self, df: pd.DataFrame, max_iter: int) -> pd.DataFrame
         Adjusts the share of each element within the dataframe to ensure they fall within the specified range.
-    get_index(self, df, caps)
+    get_index(self, df: pd.DataFrame, caps: pd.DataFrame) -> float
         Derives the index for each skin in the DataFrame based on caps.
     """
 
-    PRICE_KEY = "price"
-    MAPPING_PATH = "csgo/csgo_mapping.csv"
-    QUANTITY_MAP_KEY = "mapped_quantity"
-    QUANTITY_KEY = "quantity"
-    MARKET_HASH_NAME_KEY = "market_hash_name"
-    CONTENT_TYPE_KEY = "Content-Type"
-    CONTENT_TYPE = "application/json"
+    PRICE_KEY: str = "price"
+    MAPPING_PATH: str = "csgo/csgo_mapping.csv"
+    QUANTITY_MAP_KEY: str = "mapped_quantity"
+    QUANTITY_KEY: str = "quantity"
+    QUANTITY_KEY_PE: str = "count"
+    MARKET_HASH_NAME_KEY: str = "market_hash_name"
+    CONTENT_TYPE_KEY: str = "Content-Type"
+    CONTENT_TYPE: str = "application/json"
 
-    def __init__(self, base_url: Optional[str] = None):
-        self.base_url = base_url
+    def __init__(self, base_url: Optional[str] = None) -> None:
+        self.base_url: Optional[str] = base_url
 
     def get_caps(
         self,
         mapping: pd.DataFrame,
-        k: float = None,
-        upper_multiplier: float = None,
-        lower_multiplier: float = None,
-    ):
+        k: Optional[float] = None,
+        upper_multiplier: Optional[float] = None,
+        lower_multiplier: Optional[float] = None,
+    ) -> pd.DataFrame:
         """
         Derives the caps for each skin in the mapping.
 
@@ -112,7 +113,7 @@ class BaseAPI:
             )
         return mapping
 
-    def adjust_share(self, df, max_iter):
+    def adjust_share(self, df: pd.DataFrame, max_iter: int) -> pd.DataFrame:
         """
         Adjusts the share of each element within the dataframe to ensure they fall within the specified range.
 
@@ -181,7 +182,7 @@ class BaseAPI:
 
         return df
 
-    def get_index(self, df, caps):
+    def get_index(self, df: pd.DataFrame, caps: pd.DataFrame) -> float:
         """
         Derives the index for each skin in the DataFrame based on caps.
 
