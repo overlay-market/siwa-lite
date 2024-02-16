@@ -32,7 +32,8 @@ class OptionFetcher:
                 underlying_price = float(info.get("underlying_price", 0))
                 bid = float(bid_raw) * underlying_price
                 ask = float(ask_raw) * underlying_price
-                mark_price = float(info.get("mark_price", 0))
+                mark_price_raw = float(info.get("mark_price", 0))
+                mark_price = mark_price_raw * underlying_price
                 timestamp = ticker.get("timestamp", 0)
                 datetime = pd.to_datetime(timestamp, unit="ms")
                 expiry = self.date_parser(symbol)
@@ -43,20 +44,20 @@ class OptionFetcher:
 
                 data_dict = {
                     "symbol": symbol,
+                    "bid_btc": bid_raw,
+                    "ask_btc": ask_raw,
+                    "underlying_price": underlying_price,
                     "bid": bid,
                     "ask": ask,
+                    "mark_price_btc": mark_price_raw,
                     "mark_price": mark_price,
                     "timestamp": timestamp,
                     "datetime": datetime,
                     "expiry": expiry,
                     "YTM": YTM,
                     "forward_price": estimated_delivery_price,
-                    "underlying_price": underlying_price,
                 }
                 data_list.append(data_dict)
-
-            with open("deribit_raw_data.json", "w") as f:
-                json.dump(all_tickers, f, indent=4)
 
         except Exception as e:
             logging.error(f"Error fetching tickers: {e}")
