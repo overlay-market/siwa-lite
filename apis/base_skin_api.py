@@ -211,3 +211,33 @@ class BaseAPI:
         print(f"Set prometheus metric to index {index}")
         prometheus_metrics.csgo_index_gauge.set(index)
         return index
+
+    def extract_api_data(cls, model: BaseModel, data) -> None:
+        """Validate data pulled from external API using Pydantic."""
+        raise NotImplementedError("This method must be implemented in the child class.")
+    
+    #TODO WIP 
+    def validate_api_data(cls, model: BaseModel, data: dict) -> None:
+        """
+        Validate data pulled from external API using Pydantic.
+
+        Parameters:
+        -----------
+        model : pydantic.BaseModel
+            The Pydantic model to validate against.
+        data : dict
+            The data pulled from the API.
+
+        Raises:
+        -------
+        Exception
+            If the data does not match the pre-defined Pydantic data structure.
+
+        """
+        try:
+            cls.extract_api_data()
+        except ValidationError as e:
+            raise Exception(
+                f"Data pulled from {self.base_url} does not match "
+                f"pre-defined Pydantic data structure: {e}"
+            )
