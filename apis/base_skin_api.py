@@ -38,7 +38,7 @@ class BaseAPI:
     """
 
     PRICE_KEY: str = "price"
-    MAPPING_PATH: str = "csgo/csgo_mapping.csv"
+    MAPPING_PATH: str = "csgo/csgo_mapping.csv"  #TODO  - change to absolute path e.g. c.DATA_DIR / "csgo/csgo_mapping.csv"
     QUANTITY_MAP_KEY: str = "mapped_quantity"
     QUANTITY_KEY: str = "quantity"
     QUANTITY_KEY_PE: str = "count"
