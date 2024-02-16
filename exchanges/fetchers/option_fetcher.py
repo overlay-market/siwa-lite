@@ -27,14 +27,16 @@ class OptionFetcher:
             all_tickers = exchange.fetch_tickers(market_symbols)
             for symbol, ticker in all_tickers.items():
                 info = ticker.get("info", {})
-                bid = ticker.get("bid", 0) if ticker.get("bid") is not None else 0
-                ask = ticker.get("ask", 0) if ticker.get("ask") is not None else 0
+                bid_raw = ticker.get("bid", 0) if ticker.get("bid") is not None else 0
+                ask_raw = ticker.get("ask", 0) if ticker.get("ask") is not None else 0
+                underlying_price = float(info.get("underlying_price", 0))
+                bid = float(bid_raw) * underlying_price
+                ask = float(ask_raw) * underlying_price
                 mark_price = float(info.get("mark_price", 0))
                 timestamp = ticker.get("timestamp", 0)
                 datetime = pd.to_datetime(timestamp, unit="ms")
                 expiry = self.date_parser(symbol)
                 YTM = (expiry - datetime) / np.timedelta64(1, "Y")
-                underlying_price = float(info.get("underlying_price", 0))
                 estimated_delivery_price = float(
                     info.get("estimated_delivery_price", 0)
                 )
@@ -155,14 +157,8 @@ class OptionFetcher:
                     "symbol": symbol,
                     "bid": bid,
                     "ask": ask,
-                    "last": last,
-                    "high": high,
-                    "low": low,
-                    "open": open_price,
-                    "volume": volume,
                     "timestamp": timestamp,
-                    "strike_price": strike_price,
-                    "exercise_price": exercise_price,
+                    "underlying-asset": exercise_price,
                 }
                 data_list.append(data_dict)
             with open("binance_data.json", "w") as f:

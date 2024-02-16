@@ -1,50 +1,58 @@
+from exchanges.constants.urls import BINANCE_API_OPTIONS_URL, BINANCE_API_FUTURES_URL
+
+
+import logging
 import requests
 
-from exchanges.constants.urls import BINANCE_API_URL
+# Assuming BINANCE_API_OPTIONS_URL and BINANCE_API_FUTURES_URL are defined elsewhere
 
-
-# Assuming BINANCE_API_URL and logger are defined elsewhere as before.
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
 
 
 class BinanceFetcher:
     @staticmethod
-    def fetch_symbols(symbol_type):
-        """
-        Fetch symbols from Binance API.
-
-        Args:
-            symbol_type (str): Type of symbols to fetch. Expected values: 'optionSymbols' or 'futuresSymbols'.
-
-        # Example usage:
-        # binance_fetcher = BinanceFetcher()
-        # option_symbols = binance_fetcher.fetch_symbols('options')
-        # futures_symbols = binance_fetcher.fetch_symbols('futures')
-        """
-        symbol_key = {
-            "options": "optionSymbols",
-            "futures": "futuresSymbols",
-        }.get(symbol_type)
-
-        if not symbol_key:
-            print(f"Invalid symbol type: {symbol_type}")
-            return []
-
+    def get_response(url):
         try:
             with requests.Session() as session:
-                response = session.get(BINANCE_API_URL)
-
-            if response.status_code == 200:
-                exchange_info = response.json()
-                symbols = []
-
-                for symbol_info in exchange_info.get(symbol_key, []):
-                    if "BTC" in symbol_info.get("symbol", ""):
-                        symbols.append(symbol_info.get("symbol"))
-
-                return symbols
-            else:
-                print(f"Failed to fetch {symbol_type} symbols from Binance API")
-                return []
+                response = session.get(url)
+                if response.status_code == 200:
+                    return response.json()
+                else:
+                    logger.error(
+                        f"Failed to fetch data from {url}: {response.status_code}"
+                    )
+                    return None
         except Exception as e:
-            print(f"Error fetching {symbol_type} symbols from Binance API: {e}")
-            return []
+            logger.error(f"Exception occurred while fetching data from {url}: {e}")
+            return None
+
+    @staticmethod
+    def fetch_options_symbols():
+        data = BinanceFetcher.get_response(BINANCE_API_OPTIONS_URL)
+        if data:
+            return [
+                symbol_info.get("symbol")
+                for symbol_info in data.get("optionSymbols", [])
+                if "BTC" in symbol_info.get("symbol", "")
+            ]
+        return []
+
+    @staticmethod
+    def fetch_futures_symbols():
+        data = BinanceFetcher.get_response(BINANCE_API_FUTURES_URL)
+        if data:
+            return [
+                res.get("symbol") for res in data if "BTCUSD" in res.get("symbol", "")
+            ]
+        return []
+
+    @staticmethod
+    def fetch_symbols():
+        options = BinanceFetcher.fetch_options_symbols()
+        futures = BinanceFetcher.fetch_futures_symbols()
+        if options or futures:
+            logger.info("Successfully fetched symbols from Binance")
+        else:
+            logger.error("Failed to fetch symbols from Binance")
+        return options, futures
