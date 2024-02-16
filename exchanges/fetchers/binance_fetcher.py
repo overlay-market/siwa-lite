@@ -43,7 +43,7 @@ class BinanceFetcher:
         data = BinanceFetcher.get_response(BINANCE_API_FUTURES_URL)
         if data:
             return [
-                res.get("symbol") for res in data if "BTCUSD" in res.get("symbol", "")
+                res.get("symbol") for res in data if "BTCUSDT_" in res.get("symbol", "")
             ]
         return []
 

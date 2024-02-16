@@ -11,9 +11,7 @@ logger = logging.getLogger(__name__)
 
 
 class ExchangeManager:
-    def __init__(
-        self, exchange_id: str, pairs_to_load: list[str], market_types: list[str]
-    ):
+    def __init__(self, exchange_id, pairs_to_load, market_types):
         self.exchange_id = exchange_id
         self.pairs_to_load = pairs_to_load
         self.market_types = market_types
