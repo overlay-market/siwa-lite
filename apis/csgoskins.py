@@ -140,7 +140,10 @@ class CSGOSkins(BaseAPI):
             A dictionary containing the fetched data from the API.
         """
         url: str = self.base_url + self.PRICES_ENDPOINT
-        payload: dict = {self.RANGE_KEY: range, self.AGGREGATOR_KEY: agg}
+        payload: dict = {
+            self.RANGE_KEY: range, 
+            self.AGGREGATOR_KEY: agg
+        }
         response: requests.Response = requests.request(
             "GET", url, headers=self.headers, json=payload
         )
