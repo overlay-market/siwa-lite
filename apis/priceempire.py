@@ -77,19 +77,6 @@ class PriceEmpire(BaseAPI):
     DEFAULT_BASE_URL: str = "https://api.pricempire.com/"
     DAYS: int = 7  # Need for History data
 
-    def __init__(self) -> None:
-        """
-        Initializes the CSGOSkins class with the base URL and API key.
-
-        Parameters:
-        ----------
-        base_url : str, optional
-            The base URL for the CSGOSkins API.
-        """
-        super().__init__(base_url=self.DEFAULT_BASE_URL)
-        self.api_key: str = get_api_key(self.API_PREFIX)
-        self.headers: Dict[str, str] = {self.CONTENT_TYPE_KEY: self.CONTENT_TYPE}
-
     def validate_api_data(self, model: BaseModel, data: dict) -> None:
         """
         Validate data pulled from external API using Pydantic.
@@ -125,15 +112,16 @@ class PriceEmpire(BaseAPI):
         dict
             A dictionary containing the retrieved data from the API.
         """
-        url: str = self.base_url + self.PRICES_ENDPOINT
+        url: str = self.DEFAULT_BASE_URL + self.PRICES_ENDPOINT
         payload: dict = {
-            "api_key": self.api_key,
+            "api_key": get_api_key(self.API_PREFIX),
             "currency": self.CURRENCY,
             "appId": self.APP_ID,
             "sources": self.SOURCES,
         }
+        headers = {self.CONTENT_TYPE_KEY: self.CONTENT_TYPE}
         response: requests.Response = requests.get(
-            url, headers=self.headers, params=payload
+            url, headers=headers, params=payload
         )
         data: dict = response.json()
         self.validate_api_data(PriceEmpirePrices, data)

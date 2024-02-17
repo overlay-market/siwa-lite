@@ -91,26 +91,6 @@ class CSGOSkins(BaseAPI):
     CONTRACT_ADD_FILE: str = "apis/csgo/contract_address.txt"
     ABI_FILE: str = "apis/csgo/abi.json"
 
-    def __init__(self) -> None:
-        """
-        Initializes the CSGOSkins class with the base URL and API key.
-
-        Parameters:
-        ----------
-        base_url : str, optional
-            The base URL for the CSGOSkins API.
-        api_key : str
-            The API key to authenticate with the CSGOSkins API.
-        """
-        super().__init__(base_url=self.DEFAULT_BASE_URL)
-        self.api_key: str = get_api_key(self.API_PREFIX)
-        self.infura_key = get_api_key(self.INFURA_PREFIX)
-        self.headers: Dict[str, str] = {
-            self.AUTHORIZATION_KEY: f"{self.AUTH_TYPE} {self.api_key}",
-            self.CONTENT_TYPE_KEY: self.CONTENT_TYPE,
-        }
-        self.w3: Web3 = Web3(Web3.HTTPProvider(self.GOERLI_URL + self.infura_key))
-
     def validate_api_data(self, model: BaseModel, data) -> None:
         """Validate data pulled from external API using Pydantic."""
         try:
@@ -139,13 +119,15 @@ class CSGOSkins(BaseAPI):
         dict
             A dictionary containing the fetched data from the API.
         """
-        url: str = self.base_url + self.PRICES_ENDPOINT
+        url: str = self.DEFAULT_BASE_URL + self.PRICES_ENDPOINT
         payload: dict = {
             self.RANGE_KEY: range, 
             self.AGGREGATOR_KEY: agg
         }
+        api_key = get_api_key(self.API_PREFIX)
+        headers = {self.AUTHORIZATION_KEY: f"{self.AUTH_TYPE} {api_key}"}
         response: requests.Response = requests.request(
-            "GET", url, headers=self.headers, json=payload
+            "GET", url, headers=headers, json=payload
         )
         data: dict = response.json()
         self.validate_api_data(CSGOSkinsPrices, data["data"])
