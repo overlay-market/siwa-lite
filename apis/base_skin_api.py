@@ -2,7 +2,6 @@ from typing import Optional
 import pandas as pd
 import numpy as np
 import prometheus_metrics
-from constants import DATA_DIR
 import os
 
 
@@ -40,13 +39,43 @@ class BaseAPI:
     """
 
     PRICE_KEY: str = "price"
-    MAPPING_PATH: str = os.path.join(DATA_DIR, "csgo/csgo_mapping.csv")
+    MAPPING_PATH: str = "csgo/csgo_mapping.csv"
     QUANTITY_MAP_KEY: str = "mapped_quantity"
-    QUANTITY_KEY: str = "quantity"
-    QUANTITY_KEY_PE: str = "count"
     MARKET_HASH_NAME_KEY: str = "market_hash_name"
     CONTENT_TYPE_KEY: str = "Content-Type"
     CONTENT_TYPE: str = "application/json"
+
+    def agg_data(self, df: pd.DataFrame, quantity_key: str) -> pd.DataFrame:
+        """
+        Aggregates the data of a given DataFrame by 'market_hash_name',
+        computing the minimum price and total quantity for each group.
+
+        Parameters:
+        ----------
+        df : pd.DataFrame
+            The input DataFrame containing the data to aggregate.
+        quantity_key : str
+            The column name for the quantity in the DataFrame.
+
+        Returns:
+        -------
+        pd.DataFrame
+            A DataFrame containing the aggregated data.
+        """
+
+        df: pd.DataFrame = (
+            df.groupby(self.MARKET_HASH_NAME_KEY)[self.PRICE_KEY, quantity_key]
+            .agg(
+                price=pd.NamedAgg(column=self.PRICE_KEY, aggfunc="min"),
+                quantity_key=pd.NamedAgg(column=quantity_key, aggfunc="sum"),
+            )
+            .reset_index()
+        )
+        for row in df.to_dict("records"):
+            prometheus_metrics.csgo_price_gauge.labels(
+                market_hash_name=row["market_hash_name"]
+            ).set(row["price"])
+        return df
 
     def get_caps(
         self,

@@ -74,6 +74,7 @@ class CSGOSkins(BaseAPI):
     """
 
     API_PREFIX: str = "CSGO"
+    QUANTITY_KEY: str = "quantity"
     PRICES_ENDPOINT: str = "api/v1/prices"
     PRICE_HISTORIES_ENDPOINT: str = "api/v1/price-histories"
     PRICE_HISTORIES_RPM: int = 20
@@ -160,35 +161,6 @@ class CSGOSkins(BaseAPI):
         df[self.PRICE_KEY] = df[self.PRICE_KEY] / 100
         return df
 
-    def agg_data(self, df: pd.DataFrame) -> pd.DataFrame:
-        """
-        Aggregates the data of a given DataFrame by 'market_hash_name',
-        computing the minimum price and total quantity for each group.
-
-        Parameters:
-        ----------
-        df : pd.DataFrame
-            The input DataFrame containing the data to aggregate.
-
-        Returns:
-        -------
-        pd.DataFrame
-            A DataFrame containing the aggregated data.
-        """
-        df = (
-            df.groupby(self.MARKET_HASH_NAME_KEY)[self.PRICE_KEY, self.QUANTITY_KEY]
-            .agg(
-                price=pd.NamedAgg(column=self.PRICE_KEY, aggfunc="min"),
-                quantity=pd.NamedAgg(column=self.QUANTITY_KEY, aggfunc="sum"),
-            )
-            .reset_index()
-        )
-        for row in df.to_dict("records"):
-            prometheus_metrics.csgo_price_gauge.labels(
-                market_hash_name=row["market_hash_name"]
-            ).set(row["price"])
-        return df
-
     def cap_compared_to_prev(self, index: float) -> float:
         """
         Caps the index to be within 5% of the previous index.
@@ -228,7 +200,7 @@ if __name__ == "__main__":
     csgo = CSGOSkins()
     data: dict = csgo.get_prices()
     df: pd.DataFrame = csgo.get_prices_df()
-    df: pd.DataFrame = csgo.agg_data(df)
+    df: pd.DataFrame = csgo.agg_data(df, csgo.QUANTITY_KEY)
     caps: pd.DataFrame = csgo.get_caps(df, k=100)
     index: float = csgo.get_index(df, caps)
     print("index: ", index)

@@ -70,8 +70,9 @@ class PriceEmpire(BaseAPI):
     API_PREFIX: str = "PRICE_EMPIRE"
     PRICES_ENDPOINT: str = "v3/items/prices"
     PRICE_HISTORIES_ENDPOINT: str = "v3/items/prices/history"
+    QUANTITY_KEY: str = "quantity"
+    QUANTITY_KEY_AGG: str = "count"
     CURRENCY: str = "USD"
-    QUANTITY_KEY_PE: str = "count"
     APP_ID: int = 730  # Available values : 730, 440, 570, 252490 (Steam App id)
     SOURCES: str = "cs2go"
     DEFAULT_BASE_URL: str = "https://api.pricempire.com/"
@@ -122,7 +123,7 @@ class PriceEmpire(BaseAPI):
         headers = {self.CONTENT_TYPE_KEY: self.CONTENT_TYPE}
         response: requests.Response = requests.get(
             url, headers=headers, params=payload
-        )
+        ) 
         data: dict = response.json()
         self.validate_api_data(PriceEmpirePrices, data)
         return data
@@ -150,41 +151,10 @@ class PriceEmpire(BaseAPI):
         df[self.PRICE_KEY] = df[self.PRICE_KEY] / 100
         return df
 
-    def agg_data(self, df: pd.DataFrame) -> pd.DataFrame:
-        """
-        Aggregates the data of a given DataFrame by 'market_hash_name',
-        computing the minimum price and total quantity for each group.
-
-        Parameters:
-        ----------
-        df : pd.DataFrame
-            The input DataFrame containing the data to aggregate.
-
-        Returns:
-        -------
-        pd.DataFrame
-            A DataFrame containing the aggregated data.
-        """
-
-        df: pd.DataFrame = (
-            df.groupby(self.MARKET_HASH_NAME_KEY)[self.PRICE_KEY, self.QUANTITY_KEY_PE]
-            .agg(
-                price=pd.NamedAgg(column=self.PRICE_KEY, aggfunc="min"),
-                count=pd.NamedAgg(column=self.QUANTITY_KEY_PE, aggfunc="sum"),
-            )
-            .reset_index()
-        )
-        for row in df.to_dict("records"):
-            prometheus_metrics.csgo_price_gauge.labels(
-                market_hash_name=row["market_hash_name"]
-            ).set(row["price"])
-        return df
-
-
 if __name__ == "__main__":
     pe: PriceEmpire = PriceEmpire()
     data: dict = pe.get_prices()
     df: pd.DataFrame = pe.get_prices_df()
-    df: pd.DataFrame = pe.agg_data(df)
+    df: pd.DataFrame = pe.agg_data(df, pe.QUANTITY_KEY_AGG)
     caps: pd.DataFrame = pe.get_caps(df, k=100)
     index: float = pe.get_index(df, caps)
