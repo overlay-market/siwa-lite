@@ -2,6 +2,7 @@ from feeds.data_feed import DataFeed
 from collections import deque
 
 from apis.unisat import UnisatAPI
+from apis.magic_eden import MagicEdenAPI
 
 
 class NodeMonkes(DataFeed):
@@ -9,6 +10,7 @@ class NodeMonkes(DataFeed):
     ID = 0
     HEARTBEAT = 180
     DATAPOINT_DEQUE = deque([], maxlen=100)
+    CHAIN: 'bitcoin'
 
     COLLECTION_ID = 'nodemonkes'
     FLOOR_PX = "floorPrice"
@@ -18,11 +20,25 @@ class NodeMonkes(DataFeed):
         '''
             Process data from multiple sources
         '''
-        node_monkes_data = UnisatAPI().get_collection_stats(cls.COLLECTION_ID).json()["data"]
-        floor_price = node_monkes_data[cls.FLOOR_PX]
-        print(floor_price)
-        return floor_price
+        #node_monkes_data = UnisatAPI().get_collection_stats(cls.COLLECTION_ID).json()["data"]
+        #breakpoint()
+        #floor_price = node_monkes_data[cls.FLOOR_PX]
+        me_floor = MagicEdenAPI().get_floor_price(cls.COLLECTION_ID)
+        if me_floor is None or me_floor == 0 or me_floor/cls.DATAPOINT_DEQUE[-1] > 1.2 or me_floor/cls.DATAPOINT_DEQUE[-1] < 0.8:
+            return cls.DATAPOINT_DEQUE[-1]
+        return me_floor
 
     @classmethod
     def create_new_data_point(cls):
-        return cls.process_source_data_into_siwa_datapoint()
+        try:
+            return cls.process_source_data_into_siwa_datapoint()
+        except Exception as e:
+            print(f"Error in {cls.NAME} create_new_data_point: {e}")
+            
+
+
+def main():
+    NodeMonkes.process_source_data_into_siwa_datapoint()
+
+if __name__ == "__main__":
+    main()
