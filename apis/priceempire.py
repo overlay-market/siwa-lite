@@ -55,16 +55,12 @@ class PriceEmpire(BaseAPI):
 
     Methods:
     --------
-    __init__():
-        Initializes the CSGOSkins class with the base URL and API key.
     validate_api_data(model: BaseModel, data):
         Validate data pulled from external API using Pydantic.
     get_prices(range=DEFAULT_RANGE, agg=DEFAULT_AGG):
         Fetches the current prices of CSGO skins from the API.
     get_prices_df(range=DEFAULT_RANGE, agg=DEFAULT_AGG):
         Fetches the prices of CSGO skins and returns them as a pandas DataFrame.
-    agg_data(df):
-        Aggregates the data of a given DataFrame by 'market_hash_name'.
     """
 
     API_PREFIX: str = "PRICE_EMPIRE"
@@ -78,31 +74,22 @@ class PriceEmpire(BaseAPI):
     DEFAULT_BASE_URL: str = "https://api.pricempire.com/"
     DAYS: int = 7  # Need for History data
 
-    def validate_api_data(self, model: BaseModel, data: dict) -> None:
+    def extract_api_data(self, data: dict, model) -> dict:
         """
-        Validate data pulled from external API using Pydantic.
+        Extracts the relevant data from the API response.
 
         Parameters:
         -----------
-        model : pydantic.BaseModel
-            The Pydantic model to validate against.
         data : dict
             The data pulled from the API.
 
-        Raises:
+        Returns:
         -------
-        Exception
-            If the data does not match the pre-defined Pydantic data structure.
-
+        dict
+            The relevant data from the API response.
         """
-        try:
-            for market_hash_name, item in data.items():
-                model(data={market_hash_name: item})
-        except ValidationError as e:
-            raise Exception(
-                f"Data pulled from {self.base_url} does not match "
-                f"pre-defined Pydantic data structure: {e}"
-            )
+        for market_hash_name, item in data.items():
+            model(data={market_hash_name: item})
 
     def get_prices(self) -> dict:
         """
@@ -121,9 +108,7 @@ class PriceEmpire(BaseAPI):
             "sources": self.SOURCES,
         }
         headers = {self.CONTENT_TYPE_KEY: self.CONTENT_TYPE}
-        response: requests.Response = requests.get(
-            url, headers=headers, params=payload
-        ) 
+        response: requests.Response = requests.get(url, headers=headers, params=payload)
         data: dict = response.json()
         self.validate_api_data(PriceEmpirePrices, data)
         return data
@@ -150,6 +135,7 @@ class PriceEmpire(BaseAPI):
         df: pd.DataFrame = pd.DataFrame(prices_list)
         df[self.PRICE_KEY] = df[self.PRICE_KEY] / 100
         return df
+
 
 if __name__ == "__main__":
     pe: PriceEmpire = PriceEmpire()

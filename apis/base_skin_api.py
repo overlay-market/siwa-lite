@@ -2,12 +2,13 @@ from typing import Optional
 import pandas as pd
 import numpy as np
 import prometheus_metrics
+from pydantic import BaseModel, ValidationError
 import os
 
 
 class BaseAPI:
     """
-    Base class for API operations.
+    Base class for Skins Apis.
 
     Attributes:
     -----------
@@ -28,8 +29,8 @@ class BaseAPI:
 
     Methods:
     --------
-    __init__(base_url: Optional[str] = None)
-        Initializes the BaseAPI object with a base URL.
+    agg_data(df, quantity_key):
+        Aggregates the data of a given DataFrame by 'market_hash_name'.
     get_caps(mapping: pd.DataFrame, k: float = None, upper_multiplier: float = None, lower_multiplier: float = None) -> pd.DataFrame
         Retrieves caps for each skin in the mapping DataFrame.
     adjust_share(self, df: pd.DataFrame, max_iter: int) -> pd.DataFrame
@@ -104,13 +105,16 @@ class BaseAPI:
         """
         # Get caps for each skin
         mapping = pd.read_csv(self.MAPPING_PATH, index_col=0)
-        mapping = mapping.rename(columns={self.QUANTITY_KEY: self.QUANTITY_MAP_KEY})
+        mapping = mapping.rename(
+            columns={self.QUANTITY_KEY: self.QUANTITY_MAP_KEY})
         if (k is None) and (upper_multiplier is None and lower_multiplier is None):
-            raise ValueError("Must specify either k or upper/lower multipliers")
+            raise ValueError(
+                "Must specify either k or upper/lower multipliers")
         if (k is not None) and (
             upper_multiplier is not None or lower_multiplier is not None
         ):
-            raise ValueError("Cannot specify both k and upper/lower multipliers")
+            raise ValueError(
+                "Cannot specify both k and upper/lower multipliers")
         if upper_multiplier is not None and lower_multiplier is None:
             mapping["upper_cap_index_share"] = (
                 mapping["avg_index_share"]
@@ -195,10 +199,12 @@ class BaseAPI:
             most_deviating_index = sorted_indices[0]
             if deviations[most_deviating_index] < 0:
                 # Below the acceptable range
-                target_value = min_percentages[most_deviating_index] * sum_elements
+                target_value = min_percentages[most_deviating_index] * \
+                    sum_elements
             else:
                 # Above the acceptable range
-                target_value = max_percentages[most_deviating_index] * sum_elements
+                target_value = max_percentages[most_deviating_index] * \
+                    sum_elements
 
             # Update the value in elements list
             elements[most_deviating_index] = target_value
@@ -243,29 +249,25 @@ class BaseAPI:
     # def extract_api_data(cls, model: BaseModel, data) -> None:
     #     """Validate data pulled from external API using Pydantic."""
     #     raise NotImplementedError("This method must be implemented in the child class.")
-    
-    # #TODO WIP 
-    # def validate_api_data(cls, model: BaseModel, data: dict) -> None:
-    #     """
-    #     Validate data pulled from external API using Pydantic.
 
-    #     Parameters:
-    #     -----------
-    #     model : pydantic.BaseModel
-    #         The Pydantic model to validate against.
-    #     data : dict
-    #         The data pulled from the API.
+    def validate_api_data(cls, model: BaseModel, data: dict) -> None:
+        """
+        Validate data pulled from external API using Pydantic.
 
-    #     Raises:
-    #     -------
-    #     Exception
-    #         If the data does not match the pre-defined Pydantic data structure.
+        Parameters:
+        -----------
+        model : pydantic.BaseModel
+            The Pydantic model to validate against.
+        data : dict
+            The data pulled from the API.
 
-    #     """
-    #     try:
-    #         cls.extract_api_data()
-    #     except ValidationError as e:
-    #         raise Exception(
-    #             f"Data pulled from {self.base_url} does not match "
-    #             f"pre-defined Pydantic data structure: {e}"
-    #         )
+        Raises:
+        -------
+        Exception
+            If the data does not match the pre-defined Pydantic data structure.
+
+        """
+        try:
+            cls.extract_api_data(data, model)
+        except ValidationError as e:
+            raise Exception(f"pre-defined Pydantic data structure: {e}")

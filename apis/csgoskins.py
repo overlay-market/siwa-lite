@@ -59,16 +59,12 @@ class CSGOSkins(BaseAPI):
 
     Methods:
     --------
-    __init__():
-        Initializes the CSGOSkins class with the base URL and API key.
     validate_api_data(model: BaseModel, data):
         Validate data pulled from external API using Pydantic.
     get_prices(range=DEFAULT_RANGE, agg=DEFAULT_AGG):
         Fetches the current prices of CSGO skins from the API.
     get_prices_df(range=DEFAULT_RANGE, agg=DEFAULT_AGG):
         Fetches the prices of CSGO skins and returns them as a pandas DataFrame.
-    agg_data(df):
-        Aggregates the data of a given DataFrame by 'market_hash_name'.
     cap_compared_to_prev(index):
         Caps the index to be within 5% of the previous index.
     """
@@ -92,16 +88,22 @@ class CSGOSkins(BaseAPI):
     CONTRACT_ADD_FILE: str = "apis/csgo/contract_address.txt"
     ABI_FILE: str = "apis/csgo/abi.json"
 
-    def validate_api_data(self, model: BaseModel, data) -> None:
-        """Validate data pulled from external API using Pydantic."""
-        try:
-            for item in data:
-                model(**item)
-        except ValidationError as e:
-            raise Exception(
-                f"Data pulled from {self.base_url} does not match "
-                f"pre-defined Pydantic data structure: {e}"
-            )
+    def extract_api_data(self, data: dict, model) -> dict:
+        """
+        Extracts the relevant data from the API response.
+
+        Parameters:
+        -----------
+        data : dict
+            The data pulled from the API.
+
+        Returns:
+        -------
+        dict
+            The relevant data from the API response.
+        """
+        for item in data:
+            model(**item)
 
     def get_prices(self, range: str = DEFAULT_RANGE, agg: str = DEFAULT_AGG) -> dict:
         """
@@ -121,10 +123,7 @@ class CSGOSkins(BaseAPI):
             A dictionary containing the fetched data from the API.
         """
         url: str = self.DEFAULT_BASE_URL + self.PRICES_ENDPOINT
-        payload: dict = {
-            self.RANGE_KEY: range, 
-            self.AGGREGATOR_KEY: agg
-        }
+        payload: dict = {self.RANGE_KEY: range, self.AGGREGATOR_KEY: agg}
         api_key = get_api_key(self.API_PREFIX)
         headers = {self.AUTHORIZATION_KEY: f"{self.AUTH_TYPE} {api_key}"}
         response: requests.Response = requests.request(
