@@ -1,6 +1,8 @@
 from feeds.crypto_indices import mcap1000
 from feeds import test_feed
 from feeds.node_monkes import NodeMonkes
+from feeds.bitcoin_frogs import BitcoinFrogs
+from feeds.quantum_cats import QuantumCats
 
 Test = test_feed.Test
 MCAP1000 = mcap1000.MCAP1000
@@ -12,5 +14,7 @@ MCAP1000 = mcap1000.MCAP1000
 all_feeds = {
     Test.NAME: Test,
     MCAP1000.NAME: MCAP1000,
-    NodeMonkes.NAME: NodeMonkes
+    NodeMonkes.NAME: NodeMonkes,
+    BitcoinFrogs.NAME: BitcoinFrogs,
+    QuantumCats.NAME: QuantumCats
     }
