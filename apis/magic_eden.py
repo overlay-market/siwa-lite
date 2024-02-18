@@ -34,7 +34,7 @@ class MagicEdenAPI:
         return self._make_request(f'/btc/stat?collectionSymbol={collection_symbol}')
     
     def get_floor_price(self, collection_symbol):
-        return self.get_collection(collection_symbol).json()['floorPrice']
+        return float(self.get_collection(collection_symbol).json()['floorPrice'])/1e8 # convert from sats to btc
     
 def main():
     me = MagicEdenAPI()
