@@ -2,8 +2,10 @@ from feeds.data_feed import DataFeed
 from feeds.ordinals import OrdinalsFeed
 
 class NodeMonkes(OrdinalsFeed):
+    ID = 0
     NAME = 'node_monkes'
-    COLLECTION_ID = 'nodemonkes'
+    MAGIC_EDEN_COLLECTION_ID = 'nodemonkes'
+    OKX_COLLECTION_ID = 'nodemonkes-3'
 
 
 # def main():
