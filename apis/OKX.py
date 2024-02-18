@@ -13,13 +13,15 @@ from urllib.parse import urlencode, quote_plus
 import json
 
 
-class OKX:
+class OKXAPI:
+    
+    COLLECTIONS_ENDPOINT = "/api/v5/mktplace/nft/ordinals/collections"
+    INSCRIPTIONS_ENDPOINT = "/api/v5/explorer/brc20/inscriptions-list"
     
     def __init__(self):
         api_key = os.environ.get('OKX_API_KEY')
         secret_key = os.environ.get('OKX_SECRET_KEY')
         passphrase = os.environ.get('OKX_ACCESS_PASSPHRASE')
-        print(passphrase)
         if api_key is None or secret_key is None or passphrase is None:
             raise ValueError(f'Problem with keys, environment OKX_API_KEY is {api_key}, \
                              OKX_SECRET_KEY is {secret_key}, OKX_PASSPHRASE is {passphrase}')
@@ -27,8 +29,9 @@ class OKX:
         self.api_key = api_key
         self.secret_key = secret_key
         self.passphrase = passphrase
+        self.project = 'Siwa' # Only for WaaS APIs
 
-        self.base_url = "https://api-mainnet.magiceden.dev/v2/ord/"
+        self.base_url = "www.okx.com"
         self.headers = {
             'accept': 'application/json',
             'Authorization': f'Bearer {api_key}'
@@ -76,11 +79,11 @@ class OKX:
             'OK-ACCESS-SIGN': signature,
             'OK-ACCESS-TIMESTAMP': timestamp,
             'OK-ACCESS-PASSPHRASE': self.passphrase,
-            #'OK-ACCESS-PROJECT': api_config['project'] # Only for WaaS APIs
+            'OK-ACCESS-PROJECT': self.project # Only for WaaS APIs
         }
 
         # Send a GET request using the http.client library
-        conn = http.client.HTTPSConnection("www.okx.com")
+        conn = http.client.HTTPSConnection(self.base_url)
         params_encoded = urlencode(params, quote_via=quote_plus) if params else None
         conn.request("GET", request_path + f'?{params_encoded}' if params_encoded else request_path, headers=headers)
 
@@ -89,6 +92,29 @@ class OKX:
         data = response.read()
 
         return data.decode("utf-8")
+    
+    def get_ordinals_collections(self):
+        return self.send_get_request(self.COLLECTIONS_ENDPOINT, params={})
+    
+    def get_inscriptions_list(self):
+        res = self.send_get_request(self.INSCRIPTIONS_ENDPOINT, params={})
+        print(res)
+         
+    # def get_ordinals_collection(self, slug, cursor, limit, is_brc20):
+    #     params = {'slug': slug, 'cursor': cursor, 'limit': limit, 'isBrc20': is_brc20}
+    #     res = self.send_get_request(self.COLLECTIONS_ENDPOINT, params)
+    #     print(res)
+    
+    def get_ordinals_collection(self, slug,  limit, is_brc20):
+        params = {'slug': slug, 'limit': limit, 'isBrc20': is_brc20}
+        res = self.send_get_request(self.COLLECTIONS_ENDPOINT, params)
+        print(res)
+
+    def get_floor_price(self, slug):
+        params = {'slug': slug, 'limit': 1, 'isBrc20': False}
+        res = json.loads(self.send_get_request(self.COLLECTIONS_ENDPOINT, params))
+        return float(res['data']['data'][0]['floorPrice'])
+
 
     # def send_post_request(request_path, params):
     #     # Generate signature
@@ -118,15 +144,12 @@ class OKX:
 
     
 def main():
-    # GET request example
-    request_path = '/api/v5/dex/aggregator/quote'
-    params = {'chainId': 42161, 
-            'amount': 1000000000000, 
-            'toTokenAddress': '0xff970a61a04b1ca14834a43f5de4533ebddb5cc8', 
-            'fromTokenAddress': '0x82aF49447D8a07e3bd95BD0d56f35241523fBab1'}
-    req = OKX().send_get_request(request_path, params)
-    req
-    print(req)
+    okx = OKX()
+    #okx.get_inscriptions_list()
+    #okx.get_ordinals_collection("nodemonkes-3", 1, False)
+    res = okx.get_floor_price("nodemonkes-3")
+    breakpoint()
+ 
 
 
 if __name__ == "__main__":
