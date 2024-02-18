@@ -1,8 +1,7 @@
 from typing import Dict, Optional, List
-from pydantic import BaseModel, ValidationError
+from pydantic import BaseModel
 import requests
 import pandas as pd
-import prometheus_metrics
 from base_skin_api import BaseAPI
 
 try:
@@ -67,7 +66,7 @@ class PriceEmpire(BaseAPI):
     PRICES_ENDPOINT: str = "v3/items/prices"
     PRICE_HISTORIES_ENDPOINT: str = "v3/items/prices/history"
     QUANTITY_KEY: str = "quantity"
-    QUANTITY_KEY_AGG: str = "count"
+    QUANTITY_KEY_FOR_AGG: str = "count"
     CURRENCY: str = "USD"
     # Available values : 730, 440, 570, 252490 (Steam App id)
     APP_ID: int = 730
@@ -143,6 +142,6 @@ if __name__ == "__main__":
     pe: PriceEmpire = PriceEmpire()
     data: dict = pe.get_prices()
     df: pd.DataFrame = pe.get_prices_df()
-    df: pd.DataFrame = pe.agg_data(df, pe.QUANTITY_KEY_AGG)
+    df: pd.DataFrame = pe.agg_data(df, pe.QUANTITY_KEY_FOR_AGG)
     caps: pd.DataFrame = pe.get_caps(df, k=100)
     index: float = pe.get_index(df, caps)

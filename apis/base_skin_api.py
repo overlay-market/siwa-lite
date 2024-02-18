@@ -18,8 +18,6 @@ class BaseAPI:
         Path to the CSV file containing the mapping.
     QUANTITY_MAP_KEY : str
         Key for the mapped quantity in the DataFrame.
-    QUANTITY_KEY : str
-        Key for quantity in the DataFrame.
     MARKET_HASH_NAME_KEY : str
         Key for market hash name in the DataFrame.
     CONTENT_TYPE_KEY : str
