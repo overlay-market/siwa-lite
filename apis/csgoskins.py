@@ -59,8 +59,8 @@ class CSGOSkins(BaseAPI):
 
     Methods:
     --------
-    validate_api_data(model: BaseModel, data):
-        Validate data pulled from external API using Pydantic.
+    extract_api_data(model: BaseModel, data):
+       Extracts the relevant data from the API response.
     get_prices(range=DEFAULT_RANGE, agg=DEFAULT_AGG):
         Fetches the current prices of CSGO skins from the API.
     get_prices_df(range=DEFAULT_RANGE, agg=DEFAULT_AGG):

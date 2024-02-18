@@ -55,8 +55,8 @@ class PriceEmpire(BaseAPI):
 
     Methods:
     --------
-    validate_api_data(model: BaseModel, data):
-        Validate data pulled from external API using Pydantic.
+    extract_api_data(model: BaseModel, data):
+       Extracts the relevant data from the API response.
     get_prices(range=DEFAULT_RANGE, agg=DEFAULT_AGG):
         Fetches the current prices of CSGO skins from the API.
     get_prices_df(range=DEFAULT_RANGE, agg=DEFAULT_AGG):
@@ -69,7 +69,8 @@ class PriceEmpire(BaseAPI):
     QUANTITY_KEY: str = "quantity"
     QUANTITY_KEY_AGG: str = "count"
     CURRENCY: str = "USD"
-    APP_ID: int = 730  # Available values : 730, 440, 570, 252490 (Steam App id)
+    # Available values : 730, 440, 570, 252490 (Steam App id)
+    APP_ID: int = 730
     SOURCES: str = "cs2go"
     DEFAULT_BASE_URL: str = "https://api.pricempire.com/"
     DAYS: int = 7  # Need for History data
@@ -108,7 +109,8 @@ class PriceEmpire(BaseAPI):
             "sources": self.SOURCES,
         }
         headers = {self.CONTENT_TYPE_KEY: self.CONTENT_TYPE}
-        response: requests.Response = requests.get(url, headers=headers, params=payload)
+        response: requests.Response = requests.get(
+            url, headers=headers, params=payload)
         data: dict = response.json()
         self.validate_api_data(PriceEmpirePrices, data)
         return data
