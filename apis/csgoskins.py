@@ -1,12 +1,16 @@
+# Stdlib
 from typing import Optional, Dict, List
-import pandas as pd
-import numpy as np
 import requests
 from pydantic import BaseModel
-from web3 import Web3
 import json
-from base_skin_api import BaseAPI
 
+# Third party
+import pandas as pd
+import numpy as np
+from web3 import Web3
+
+# Our stuff
+from base_skin_api import BaseAPI
 
 try:
     from apis.utils import get_api_key

@@ -1,9 +1,15 @@
+# Stdlib
 from typing import Optional
-import pandas as pd
-import numpy as np
 import prometheus_metrics
 from pydantic import BaseModel, ValidationError
 import os
+
+# Third party
+import pandas as pd
+import numpy as np
+
+# Out stuff
+import constants as c
 
 
 class BaseAPI:
@@ -40,7 +46,7 @@ class BaseAPI:
     """
 
     PRICE_KEY: str = "price"
-    MAPPING_PATH: str = "csgo/csgo_mapping.csv"
+    MAPPING_PATH: str = os.path.join(c.DATA_DIR, "csgo/csgo_mapping.csv")
     QUANTITY_MAP_KEY: str = "mapped_quantity"
     MARKET_HASH_NAME_KEY: str = "market_hash_name"
     CONTENT_TYPE_KEY: str = "Content-Type"
@@ -127,16 +133,13 @@ class BaseAPI:
         """
         # Get caps for each skin
         mapping = pd.read_csv(self.MAPPING_PATH, index_col=0)
-        mapping = mapping.rename(
-            columns={self.QUANTITY_KEY: self.QUANTITY_MAP_KEY})
+        mapping = mapping.rename(columns={self.QUANTITY_KEY: self.QUANTITY_MAP_KEY})
         if (k is None) and (upper_multiplier is None and lower_multiplier is None):
-            raise ValueError(
-                "Must specify either k or upper/lower multipliers")
+            raise ValueError("Must specify either k or upper/lower multipliers")
         if (k is not None) and (
             upper_multiplier is not None or lower_multiplier is not None
         ):
-            raise ValueError(
-                "Cannot specify both k and upper/lower multipliers")
+            raise ValueError("Cannot specify both k and upper/lower multipliers")
         if upper_multiplier is not None and lower_multiplier is None:
             mapping["upper_cap_index_share"] = (
                 mapping["avg_index_share"]
@@ -221,12 +224,10 @@ class BaseAPI:
             most_deviating_index = sorted_indices[0]
             if deviations[most_deviating_index] < 0:
                 # Below the acceptable range
-                target_value = min_percentages[most_deviating_index] * \
-                    sum_elements
+                target_value = min_percentages[most_deviating_index] * sum_elements
             else:
                 # Above the acceptable range
-                target_value = max_percentages[most_deviating_index] * \
-                    sum_elements
+                target_value = max_percentages[most_deviating_index] * sum_elements
 
             # Update the value in elements list
             elements[most_deviating_index] = target_value

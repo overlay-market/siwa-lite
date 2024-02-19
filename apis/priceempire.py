@@ -1,7 +1,12 @@
+# Stdlib
 from typing import Dict, Optional, List
 from pydantic import BaseModel
 import requests
+
+# Third party
 import pandas as pd
+
+# Our stuff
 from base_skin_api import BaseAPI
 
 try:
@@ -108,8 +113,7 @@ class PriceEmpire(BaseAPI):
             "sources": self.SOURCES,
         }
         headers = {self.CONTENT_TYPE_KEY: self.CONTENT_TYPE}
-        response: requests.Response = requests.get(
-            url, headers=headers, params=payload)
+        response: requests.Response = requests.get(url, headers=headers, params=payload)
         data: dict = response.json()
         self.validate_api_data(PriceEmpirePrices, data)
         return data
