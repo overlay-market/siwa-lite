@@ -25,6 +25,9 @@ class MergeMarketHandler:
         )
         if future_market:
             futures_data = self.future_market_handler.handle(future_market)
+            futures_data.to_json(
+                f"{self.exchange}_futures_data.json", orient="records", indent=4
+            )
             merged_data = pd.concat([options_data, futures_data], ignore_index=True)
         else:
             merged_data = options_data
@@ -36,9 +39,7 @@ class MergeMarketHandler:
 
         spreads = self.processing.calculate_spreads(valid_quotes)
         remove_large_spreads = self.processing.remove_large_spreads(spreads)
-        spreads.to_json(
-            f"{self.exchange}_spreads.json", orient="records", indent=4
-        )
+        spreads.to_json(f"{self.exchange}_spreads.json", orient="records", indent=4)
         remove_large_spreads.to_json(
             f"{self.exchange}_remove_large_spreads.json", orient="records", indent=4
         )

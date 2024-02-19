@@ -18,11 +18,11 @@ def main():
             pairs_to_load=["BTC/USD:BTC"], market_types=["option", "future"]
         )
         okx = OKXManager(
-            pairs_to_load=["BTC/USD:BTC"], market_types=["option", "future"]
+            pairs_to_load=["BTC/USD:BTC"], market_types=["option"]
         )
         results = pd.DataFrame()
 
-        for manager in [deribit]:
+        for manager in [binance]:
             results = pd.concat(
                 [results, manager.load_specific_pairs()], ignore_index=True
             )

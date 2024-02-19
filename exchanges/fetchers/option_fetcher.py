@@ -1,8 +1,8 @@
-import json
 import logging
 
 import numpy as np
 import pandas as pd
+import requests
 
 
 class OptionFetcher:
@@ -23,6 +23,9 @@ class OptionFetcher:
         try:
             all_tickers = self.exchange.fetch_tickers(market_symbols)
             tickers_df = pd.DataFrame(all_tickers).transpose()
+            tickers_df.to_json(
+                f"{exchange_name}_raw_data_options.json", orient="records", indent=4
+            )
             if exchange_name == "Deribit":
                 return self.process_deribit_data(tickers_df)
             elif exchange_name == "OKX":
@@ -86,13 +89,51 @@ class OptionFetcher:
         ]
 
     def process_okx_data(self, df: pd.DataFrame) -> pd.DataFrame:
+        # Fetch mark prices from OKX API
+        response = requests.get(
+            "https://www.okx.com/api/v5/public/mark-price?instType=OPTION"
+        )
+        mark_prices = response.json()["data"]
+        mark_prices_df = pd.DataFrame(mark_prices)
+
+        # Convert 'instId' in mark_prices_df to 'symbol' format
+        mark_prices_df["symbol"] = mark_prices_df["instId"].apply(
+            self.convert_inst_id_to_symbol
+        )
+        # Continue with the rest of the process, assuming the rest of your method is correct
+        df["underlying_price"] = self.exchange.fetch_ticker("BTC/USDT")["last"]
+        df["bid"] *= df["underlying_price"]
+        df["ask"] *= df["underlying_price"]
         df["datetime"] = pd.to_datetime(df["timestamp"], unit="ms")
         df["expiry"] = df["symbol"].apply(self.date_parser)
         df["YTM"] = (df["expiry"] - df["datetime"]) / np.timedelta64(1, "Y")
-        return df[["symbol", "bid", "ask", "datetime", "expiry", "YTM"]]
+
+        # Merge the mark prices into the df based on the new 'symbol'
+        df = df.merge(mark_prices_df[["symbol", "markPx"]], on="symbol", how="left")
+
+        # Rename the 'markPx' column to 'mark_price' for clarity (optional)
+        df.rename(columns={"markPx": "mark_price"}, inplace=True)
+        df["mark_price"] = pd.to_numeric(df["mark_price"], errors="coerce").fillna(0.0) * df[
+            "underlying_price"
+        ]
+
+        # Select and return the desired columns, including the new 'mark_price'
+        return df[
+            [
+                "symbol",
+                "bid",
+                "ask",
+                "mark_price",
+                "underlying_price",
+                "datetime",
+                "expiry",
+                "YTM",
+            ]
+        ]
 
     def process_binance_data(self, df: pd.DataFrame) -> pd.DataFrame:
         # Assuming 'info' contains the required details
+        print(df)
         df["bid"] = df["info"].apply(lambda x: float(x.get("bidPrice", 0)))
         df["ask"] = df["info"].apply(lambda x: float(x.get("askPrice", 0)))
         df["timestamp"] = pd.to_datetime(df["timestamp"], unit="ms")
@@ -114,3 +155,16 @@ class OptionFetcher:
                 except ValueError:
                     continue
         return pd.NaT
+
+    @staticmethod
+    def convert_inst_id_to_symbol(inst_id: str) -> str:
+        # Split the instId into its components
+        parts = inst_id.split("-")
+        currency = f"{parts[0]}/{parts[1]}"  # e.g., BTC/USD
+        date = parts[2][:2] + parts[2][2:4] + parts[2][4:]  # Reformat date
+        strike_price = parts[3]
+        option_type = parts[4]
+
+        # Reassemble into the symbol format
+        symbol = f"{currency}:{parts[0]}-{date}-{strike_price}-{option_type}"
+        return symbol

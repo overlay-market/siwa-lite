@@ -1,4 +1,4 @@
-BINANCE_API_OPTIONS_URL = "https://eapi.binance.com/eapi/v1/exchangeInfo"
+BINANCE_API_OPTIONS_URL = "https://eapi.binance.com"
 BINANCE_API_FUTURES_URL = "https://fapi.binance.com/fapi/v1/premiumIndex"
 ByBit_API_URL = "https://api.bybit.com/v2/public/symbols"
 OKX_API_URL = "https://www.okex.com/api/spot/v3/instruments"

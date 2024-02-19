@@ -1,3 +1,5 @@
+import json
+
 import ccxt
 import logging
 
@@ -22,24 +24,17 @@ class ExchangeManager:
         self.futures_data = pd.DataFrame()
 
     def fetch_binance_symbols(self):
-        logger.info("Fetching Binance option and future symbols.")
-        (
-            binance_option_symbols,
-            binance_future_symbols,
-        ) = self.binance_fetcher.fetch_symbols()
-        return binance_option_symbols, binance_future_symbols
+        binance_option_symbols = self.binance_fetcher.fetch_symbols()
+        return binance_option_symbols
 
     def load_specific_pairs(self) -> pd.DataFrame:
         try:
             if self.exchange_id == "binance":
-                (
-                    binance_option_symbols,
-                    binance_future_symbols,
-                ) = self.fetch_binance_symbols()
+                binance_option_symbols = self.fetch_binance_symbols()
                 data = {
                     "BTC/USD:BTC": {
                         "option": binance_option_symbols,
-                        "future": binance_future_symbols,
+                        "future": None,
                     }
                 }
                 return self.handle_market_type(data)

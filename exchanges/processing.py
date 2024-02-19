@@ -12,9 +12,9 @@ class Processing:
         # Calculate implied interest rates
         df = df.copy()
 
-        df["rimp"] = (
-            np.log(df["mark_price"]) - np.log(df["underlying_price"])
-        ) / df["YTM"]
+        df["rimp"] = (np.log(df["mark_price"]) - np.log(df["underlying_price"])) / df[
+            "YTM"
+        ]
 
         # Rimp = (ln F − ln S)/T
         return df
@@ -84,6 +84,19 @@ class Processing:
         df = df[df["spread"] <= df["global_max_spread"]]
         return df
 
+    @staticmethod
+    def calculate_mid_price(df):
+        df["mid_price"] = (df["bid"] + df["ask"]) / 2
+        return df
+
+    @staticmethod
+    def select_options_within_range(df):
+        df = df.copy()
+        df["Kmin"] = df["Fimp"] / RANGE_MULT
+        df["Kmax"] = df["Fimp"] * RANGE_MULT
+        df = df[(df["strike"] >= df["Kmin"]) & (df["strike"] <= df["Kmax"])]
+        return df
+
     # Calculate the implied forward price of the strike that has minimum ab-
     # solute mid-price difference between call and put options, for near and
     # next-term options: Fimp = K + F × (C − P ) where F is the forward price,
@@ -97,15 +110,10 @@ class Processing:
         df["Fimp"] = df["strike"] + df["F"] * (df["call"] - df["put"])
         return df
 
+    # Set the largest strike that is less than the implied forward Fimp as ATM
+    # strike KAT M for near and next-term options.
     @staticmethod
-    def calculate_mid_price(df):
-        df["mid_price"] = (df["bid"] + df["ask"]) / 2
-        return df
-
-    @staticmethod
-    def select_options_within_range(df):
+    def atm_strike(df):
         df = df.copy()
-        df["Kmin"] = df["Fimp"] / RANGE_MULT
-        df["Kmax"] = df["Fimp"] * RANGE_MULT
-        df = df[(df["strike"] >= df["Kmin"]) & (df["strike"] <= df["Kmax"])]
+        df["KATM"] = df[df["strike"] < df["Fimp"]].groupby("expiry")["strike"].max()
         return df
