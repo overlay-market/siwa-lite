@@ -1,5 +1,6 @@
 BINANCE_API_OPTIONS_URL = "https://eapi.binance.com"
 BINANCE_API_FUTURES_URL = "https://fapi.binance.com/fapi/v1/premiumIndex"
+BINANCE_API_SPOT_URL = "https://api.binance.com"
 ByBit_API_URL = "https://api.bybit.com/v2/public/symbols"
 OKX_API_URL = "https://www.okex.com/api/spot/v3/instruments"
 KRAKEN_API_URL = "https://api.kraken.com/0/public/AssetPairs"

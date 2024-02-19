@@ -4,10 +4,13 @@ import numpy as np
 import pandas as pd
 import requests
 
+from exchanges.fetchers.binance_fetcher import BinanceFetcher
+
 
 class OptionFetcher:
     def __init__(self, exchange):
         self.exchange = exchange
+        self.binance_fetcher = BinanceFetcher()
 
     def fetch_market_data(
         self, market_symbols: list[str], exchange_name: str
@@ -23,9 +26,6 @@ class OptionFetcher:
         try:
             all_tickers = self.exchange.fetch_tickers(market_symbols)
             tickers_df = pd.DataFrame(all_tickers).transpose()
-            tickers_df.to_json(
-                f"{exchange_name}_raw_data_options.json", orient="records", indent=4
-            )
             if exchange_name == "Deribit":
                 return self.process_deribit_data(tickers_df)
             elif exchange_name == "OKX":
@@ -40,37 +40,31 @@ class OptionFetcher:
             return pd.DataFrame()
 
     def process_deribit_data(self, df: pd.DataFrame) -> pd.DataFrame:
-        # Convert 'info' column to separate columns for easier manipulation
         info_df = pd.json_normalize(df["info"])
         df = df.reset_index(drop=True)
 
-        # Replace 'None' with 0.0 and convert to float for 'bid' and 'ask'
         df["bid"] = pd.to_numeric(df["bid"], errors="coerce").fillna(0.0)
         df["ask"] = pd.to_numeric(df["ask"], errors="coerce").fillna(0.0)
 
-        # Convert 'mark_price' from info_df to numeric and update in df
         df["mark_price"] = pd.to_numeric(info_df["mark_price"], errors="coerce").fillna(
             0.0
         )
 
-        # Assuming info_df and df are aligned by index after pd.json_normalize
         underlying_prices = pd.to_numeric(
             info_df["underlying_price"], errors="coerce"
         ).fillna(0.0)
 
-        # Adjust 'bid' and 'ask' based on 'underlying_prices'
         df["bid"] *= underlying_prices
         df["ask"] *= underlying_prices
         df["mark_price"] *= underlying_prices
 
         df["underlying_price"] = underlying_prices
 
-        # Convert timestamp to datetime
         df["datetime"] = pd.to_datetime(df["timestamp"], unit="ms")
 
-        # Efficient expiry date parsing (assuming this can be vectorized or is already efficient)
         df["expiry"] = df["symbol"].apply(self.date_parser)
-
+        df["datetime_hum"] = df["datetime"].dt.strftime("%Y-%m-%d %H:%M:%S")
+        df["expiry_hum"] = df["expiry"].dt.strftime("%Y-%m-%d %H:%M:%S")
         # Calculate YTM
         df["YTM"] = (df["expiry"] - df["datetime"]) / np.timedelta64(1, "Y")
 
@@ -84,6 +78,8 @@ class OptionFetcher:
                 "datetime",
                 "expiry",
                 "YTM",
+                "datetime_hum",
+                "expiry_hum",
                 "underlying_price",
             ]
         ]
@@ -106,6 +102,8 @@ class OptionFetcher:
         df["ask"] *= df["underlying_price"]
         df["datetime"] = pd.to_datetime(df["timestamp"], unit="ms")
         df["expiry"] = df["symbol"].apply(self.date_parser)
+        df["datetime_hum"] = df["datetime"].dt.strftime("%Y-%m-%d %H:%M:%S")
+        df["expiry_hum"] = df["expiry"].dt.strftime("%Y-%m-%d %H:%M:%S")
         df["YTM"] = (df["expiry"] - df["datetime"]) / np.timedelta64(1, "Y")
 
         # Merge the mark prices into the df based on the new 'symbol'
@@ -113,9 +111,10 @@ class OptionFetcher:
 
         # Rename the 'markPx' column to 'mark_price' for clarity (optional)
         df.rename(columns={"markPx": "mark_price"}, inplace=True)
-        df["mark_price"] = pd.to_numeric(df["mark_price"], errors="coerce").fillna(0.0) * df[
-            "underlying_price"
-        ]
+        df["mark_price"] = (
+            pd.to_numeric(df["mark_price"], errors="coerce").fillna(0.0)
+            * df["underlying_price"]
+        )
 
         # Select and return the desired columns, including the new 'mark_price'
         return df[
@@ -127,20 +126,43 @@ class OptionFetcher:
                 "underlying_price",
                 "datetime",
                 "expiry",
+                "datetime_hum",
+                "expiry_hum",
                 "YTM",
             ]
         ]
 
     def process_binance_data(self, df: pd.DataFrame) -> pd.DataFrame:
+        df.to_json("binance_data.json", orient="records", indent=4)
         # Assuming 'info' contains the required details
-        print(df)
+        prices = self.binance_fetcher.fetch_mark_and_underlying_price()
+        prices["symbol"] = prices["symbol"].apply(self.transform_symbol_format)
+
         df["bid"] = df["info"].apply(lambda x: float(x.get("bidPrice", 0)))
         df["ask"] = df["info"].apply(lambda x: float(x.get("askPrice", 0)))
-        df["timestamp"] = pd.to_datetime(df["timestamp"], unit="ms")
-        df["expiry"] = df["symbol"].apply(self.date_parser)
-        df["YTM"] = (df["expiry"] - df["timestamp"]) / np.timedelta64(1, "Y")
 
-        return df[["symbol", "bid", "ask", "timestamp", "expiry", "YTM"]]
+        df["datetime"] = pd.to_datetime(df["datetime"], unit="ms")
+        df["expiry"] = df["symbol"].apply(self.date_parser)
+        df["datetime_hum"] = df["datetime"].dt.strftime("%Y-%m-%d %H:%M:%S")
+        df["expiry_hum"] = df["expiry"].dt.strftime("%Y-%m-%d %H:%M:%S")
+        df["YTM"] = (df["expiry"] - df["timestamp"]) / np.timedelta64(1, "Y")
+        # Merge the prices into the df based on the 'symbol'
+        df = df.merge(prices, on="symbol", how="left")
+
+        return df[
+            [
+                "symbol",
+                "bid",
+                "ask",
+                "mark_price",
+                "underlying_price",
+                "timestamp",
+                "expiry",
+                "datetime_hum",
+                "expiry_hum",
+                "YTM",
+            ]
+        ]
 
     @staticmethod
     def date_parser(symbol: str) -> pd.Timestamp:
@@ -168,3 +190,8 @@ class OptionFetcher:
         # Reassemble into the symbol format
         symbol = f"{currency}:{parts[0]}-{date}-{strike_price}-{option_type}"
         return symbol
+
+    @staticmethod
+    def transform_symbol_format(symbol):
+        parts = symbol.split("-")
+        return f"{parts[0]}/USDT:USDT-{parts[1]}-{parts[2]}-{parts[3]}"

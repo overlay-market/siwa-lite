@@ -24,7 +24,7 @@ class ExchangeManager:
         self.futures_data = pd.DataFrame()
 
     def fetch_binance_symbols(self):
-        binance_option_symbols = self.binance_fetcher.fetch_symbols()
+        binance_option_symbols = self.binance_fetcher.fetch_options_symbols()
         return binance_option_symbols
 
     def load_specific_pairs(self) -> pd.DataFrame:

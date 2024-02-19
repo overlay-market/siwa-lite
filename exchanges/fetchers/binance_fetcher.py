@@ -1,7 +1,10 @@
 import pandas as pd
 
-from exchanges.constants.urls import BINANCE_API_OPTIONS_URL, BINANCE_API_FUTURES_URL
-
+from exchanges.constants.urls import (
+    BINANCE_API_OPTIONS_URL,
+    BINANCE_API_FUTURES_URL,
+    BINANCE_API_SPOT_URL,
+)
 
 import logging
 import requests
@@ -31,21 +34,38 @@ class BinanceFetcher:
 
     @staticmethod
     def fetch_options_symbols():
-        data = BinanceFetcher.get_response(BINANCE_API_OPTIONS_URL+"/eapi/v1/exchangeInfo")["optionSymbols"]
+        data = BinanceFetcher.get_response(
+            BINANCE_API_OPTIONS_URL + "/eapi/v1/exchangeInfo"
+        )["optionSymbols"]
         data_df = pd.DataFrame(data)
         # all symbols with BTC-
         symbols = data_df["symbol"].loc[data_df["symbol"].str.contains("BTC-")]
-        return symbols
+        return symbols.tolist()
 
     @staticmethod
-    def fetch_mark_price():
-        data = BinanceFetcher.get_response(BINANCE_API_OPTIONS_URL+"/eapi/v1/mark")
-        data_df = pd.DataFrame(data)
-        # get all where BTC- is in the symbol
-        return data_df.loc[data_df["symbol"].str.contains("BTC-")]
+    def fetch_mark_and_underlying_price():
+        mark_prices = BinanceFetcher.get_response(
+            BINANCE_API_OPTIONS_URL + "/eapi/v1/mark"
+        )
+        underlying_price = BinanceFetcher.get_response(
+            BINANCE_API_SPOT_URL + "/api/v3/ticker/price"
+        )
+        underlying_price_df = pd.DataFrame(underlying_price)
+        data_df = pd.DataFrame(mark_prices)
+        data_df = data_df.loc[data_df["symbol"].str.contains("BTC-")]
 
+        # Ensure that only the BTCUSDT price is fetched to match "BTC-" symbols
+        ud_price = underlying_price_df.loc[
+            underlying_price_df["symbol"] == "BTCUSDT", "price"
+        ].iloc[0]
 
+        data_df["underlying_price"] = float(ud_price)
+        data_df.rename(columns={"markPrice": "mark_price"}, inplace=True)
 
+        # Convert "mark_price" to float
+        data_df["mark_price"] = data_df["mark_price"].astype(float)
+
+        return data_df[["symbol", "mark_price", "underlying_price"]]
 
     @staticmethod
     def fetch_futures_symbols():
