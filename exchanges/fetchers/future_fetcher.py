@@ -9,9 +9,7 @@ class FutureFetcher:
     def __init__(self, exchange):
         self.exchange = exchange
 
-    def fetch_market_data_okx(
-        self, market_symbols: list[str]
-    ) -> pd.DataFrame:
+    def fetch_market_data_okx(self, market_symbols: list[str]) -> pd.DataFrame:
         print("Fetching data from OKX for futures")
         data_list = []
         try:
@@ -23,9 +21,7 @@ class FutureFetcher:
 
         return pd.DataFrame(data_list)
 
-    def fetch_market_data_binance(
-        self, market_symbols: list[str]
-    ) -> pd.DataFrame:
+    def fetch_market_data_binance(self, market_symbols: list[str]) -> pd.DataFrame:
         data_list = []
         print(f"Market symbols: {market_symbols}")
         try:
@@ -38,9 +34,7 @@ class FutureFetcher:
 
         return pd.DataFrame(data_list)
 
-    def fetch_market_data_deribit(
-        self, market_symbols: list[str]
-    ) -> pd.DataFrame:
+    def fetch_market_data_deribit(self, market_symbols: list[str]) -> pd.DataFrame:
         data_list = []
         try:
             all_tickers = self.exchange.fetch_tickers(market_symbols)

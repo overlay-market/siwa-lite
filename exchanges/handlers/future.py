@@ -16,17 +16,11 @@ class FutureMarketHandler:
 
     def handle(self, market_symbols: List[str]) -> pd.DataFrame:
         if str(self.exchange) == "Binance":
-            market_data = self.data_fetcher.fetch_market_data_binance(
-                market_symbols
-            )
+            market_data = self.data_fetcher.fetch_market_data_binance(market_symbols)
         elif str(self.exchange) == "OKX":
-            market_data = self.data_fetcher.fetch_market_data_okx(
-                market_symbols
-            )
+            market_data = self.data_fetcher.fetch_market_data_okx(market_symbols)
         elif str(self.exchange) == "Deribit":
-            market_data = self.data_fetcher.fetch_market_data_deribit(
-                market_symbols
-            )
+            market_data = self.data_fetcher.fetch_market_data_deribit(market_symbols)
         else:
             logger.error(f"Exchange not supported: {self.exchange}")
             return pd.DataFrame()

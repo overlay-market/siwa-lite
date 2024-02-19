@@ -3,13 +3,17 @@ import json
 import numpy as np
 import pandas as pd
 
+from exchanges.constants.utils import SPREAD_MIN, SPREAD_MULTIPLIER, RANGE_MULT
+
 
 class Processing:
     @staticmethod
     def calculate_implied_interest_rates(df):
         # Calculate implied interest rates
+        df = df.copy()
+
         df["rimp"] = (
-            np.log(df["forward_price"]) - np.log(df["underlying_price"])
+            np.log(df["mark_price"]) - np.log(df["underlying_price"])
         ) / df["YTM"]
 
         # Rimp = (ln F − ln S)/T
@@ -29,6 +33,8 @@ class Processing:
 
     @staticmethod
     def near_and_next_term_options(df):
+        df = df.copy()
+
         df["datetime"] = pd.to_datetime(df["datetime"])
         df["expiry"] = pd.to_datetime(df["expiry"])
         df = df.sort_values(by=["expiry", "datetime"])
@@ -61,19 +67,34 @@ class Processing:
 
     @staticmethod
     def calculate_spreads(df):
+        df = df.copy()
         df["bid_spread"] = (df["mark_price"] - df["bid"]).clip(lower=0)
         df["ask_spread"] = (df["ask"] - df["mark_price"]).clip(lower=0)
         df["spread"] = df["bid_spread"] + df["ask_spread"]
         return df
 
     @staticmethod
-    def remove_large_spreads(df, spread_multiplier=1, spread_min=0):
+    def remove_large_spreads(df):
+        df = df.copy()
         df["max_spread"] = (
-            df[["bid_spread", "ask_spread"]].min(axis=1) * spread_multiplier
+            df[["bid_spread", "ask_spread"]].min(axis=1) * SPREAD_MULTIPLIER
         )
         df = df[df["spread"] <= df["max_spread"]]
-        df["global_max_spread"] = spread_min * spread_multiplier
+        df["global_max_spread"] = SPREAD_MIN * SPREAD_MULTIPLIER
         df = df[df["spread"] <= df["global_max_spread"]]
+        return df
+
+    # Calculate the implied forward price of the strike that has minimum ab-
+    # solute mid-price difference between call and put options, for near and
+    # next-term options: Fimp = K + F × (C − P ) where F is the forward price,
+    # C is the call option price, P is put option price, and both options are
+    # quoted in the amounts of underlying.
+
+    def implied_forward_price(self, df):
+        df = df.copy()
+        df = self.calculate_mid_price(df)
+        df = self.select_options_within_range(df)
+        df["Fimp"] = df["strike"] + df["F"] * (df["call"] - df["put"])
         return df
 
     @staticmethod
@@ -82,9 +103,9 @@ class Processing:
         return df
 
     @staticmethod
-    def calculate_interest_rate(df):
-        df["YTM"] = (df["expiry"] - df["datetime"]) / np.timedelta64(1, "Y")
-        df["rimp"] = (
-            np.log(df["forward_price"]) - np.log(df["underlying_price"])
-        ) / df["YTM"]
+    def select_options_within_range(df):
+        df = df.copy()
+        df["Kmin"] = df["Fimp"] / RANGE_MULT
+        df["Kmax"] = df["Fimp"] * RANGE_MULT
+        df = df[(df["strike"] >= df["Kmin"]) & (df["strike"] <= df["Kmax"])]
         return df

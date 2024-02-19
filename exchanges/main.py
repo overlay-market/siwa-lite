@@ -22,7 +22,7 @@ def main():
         )
         results = pd.DataFrame()
 
-        for manager in [okx]:
+        for manager in [deribit]:
             results = pd.concat(
                 [results, manager.load_specific_pairs()], ignore_index=True
             )

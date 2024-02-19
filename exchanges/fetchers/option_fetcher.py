@@ -9,168 +9,108 @@ class OptionFetcher:
     def __init__(self, exchange):
         self.exchange = exchange
 
-    def fetch_market_data_deribit(self, market_symbols: list[str]) -> pd.DataFrame:
+    def fetch_market_data(
+        self, market_symbols: list[str], exchange_name: str
+    ) -> pd.DataFrame:
         """
-        Fetches market data for a given list of market symbols from deribit exchange.
+        Fetches market data for a given list of market symbols from a specified exchange and processes it using pandas.
         Args:
-            market_symbols: A list of symbols in the format recognized by OKX (e.g., "BTC-USD-240628-42000-C")
+            market_symbols: A list of symbols in the format recognized by the exchange.
+            exchange_name: String representing the exchange name ('deribit', 'okx', 'binance').
         Returns:
-            pd.DataFrame: DataFrame with market data for each option contract.
+            pd.DataFrame: DataFrame with processed market data for each option contract.
         """
-        data_list = []  # Initialize an empty list to store data dictionaries
-
         try:
             all_tickers = self.exchange.fetch_tickers(market_symbols)
-            for symbol, ticker in all_tickers.items():
-                info = ticker.get("info", {})
-                bid_raw = ticker.get("bid", 0) if ticker.get("bid") is not None else 0
-                ask_raw = ticker.get("ask", 0) if ticker.get("ask") is not None else 0
-                underlying_price = float(info.get("underlying_price", 0))
-                bid = float(bid_raw) * underlying_price
-                ask = float(ask_raw) * underlying_price
-                mark_price_raw = float(info.get("mark_price", 0))
-                mark_price = mark_price_raw * underlying_price
-                timestamp = ticker.get("timestamp", 0)
-                datetime = pd.to_datetime(timestamp, unit="ms")
-                expiry = self.date_parser(symbol)
-                ytm = (expiry - datetime) / np.timedelta64(1, "Y")
-                estimated_delivery_price = float(
-                    info.get("estimated_delivery_price", 0)
-                )
-
-                data_dict = {
-                    "symbol": symbol,
-                    "bid_btc": bid_raw,
-                    "ask_btc": ask_raw,
-                    "underlying_price": underlying_price,
-                    "bid": bid,
-                    "ask": ask,
-                    "mark_price_btc": mark_price_raw,
-                    "mark_price": mark_price,
-                    "timestamp": timestamp,
-                    "datetime": datetime,
-                    "expiry": expiry,
-                    "YTM": ytm,
-                    "forward_price": estimated_delivery_price,
-                }
-                data_list.append(data_dict)
-
+            tickers_df = pd.DataFrame(all_tickers).transpose()
+            if exchange_name == "Deribit":
+                return self.process_deribit_data(tickers_df)
+            elif exchange_name == "OKX":
+                return self.process_okx_data(tickers_df)
+            elif exchange_name == "Binance":
+                return self.process_binance_data(tickers_df)
+            else:
+                logging.error(f"Unsupported exchange: {exchange_name}")
+                return pd.DataFrame()
         except Exception as e:
-            logging.error(f"Error fetching tickers: {e}")
+            logging.error(f"Error fetching tickers from {exchange_name}: {e}")
+            return pd.DataFrame()
 
-        return pd.DataFrame(data_list)
+    def process_deribit_data(self, df: pd.DataFrame) -> pd.DataFrame:
+        # Convert 'info' column to separate columns for easier manipulation
+        info_df = pd.json_normalize(df["info"])
+        df = df.reset_index(drop=True)
 
-    def fetch_market_data_okx(self, market_symbols: list[str]) -> pd.DataFrame:
-        """
-        Fetches market data for a given list of market symbols from OKX exchange.
-        Args:
-            market_symbols: A list of symbols in the format recognized by OKX (e.g., "BTC-USD-240628-42000-C")
-        Returns:
-            pd.DataFrame: DataFrame with market data for each option contract.
-        """
-        data_list = []  # Initialize an empty list to store data dictionaries
+        # Replace 'None' with 0.0 and convert to float for 'bid' and 'ask'
+        df["bid"] = pd.to_numeric(df["bid"], errors="coerce").fillna(0.0)
+        df["ask"] = pd.to_numeric(df["ask"], errors="coerce").fillna(0.0)
 
-        try:
-            all_tickers = self.exchange.fetch_tickers(market_symbols)
-            for symbol, ticker in all_tickers.items():
-                bid = (
-                    float(ticker.get("bid", 0)) if ticker.get("bid") is not None else 0
-                )
-                ask = (
-                    float(ticker.get("ask", 0)) if ticker.get("ask") is not None else 0
-                )
-                timestamp = ticker.get("timestamp", 0)
-                datetime = pd.to_datetime(timestamp, unit="ms")
-                expiry = self.date_parser(symbol)
-                ytm = (expiry - datetime) / np.timedelta64(1, "Y")
+        # Convert 'mark_price' from info_df to numeric and update in df
+        df["mark_price"] = pd.to_numeric(info_df["mark_price"], errors="coerce").fillna(
+            0.0
+        )
 
-                # Construct a dictionary for each symbol with the required data
-                data_dict = {
-                    "symbol": symbol,
-                    "bid": bid,
-                    "ask": ask,
-                    "timestamp": timestamp,
-                    "datetime": datetime,
-                    "expiry": expiry,
-                    "YTM": ytm,
-                }
-                data_list.append(data_dict)
+        # Assuming info_df and df are aligned by index after pd.json_normalize
+        underlying_prices = pd.to_numeric(
+            info_df["underlying_price"], errors="coerce"
+        ).fillna(0.0)
 
-            with open("okx_data.json", "w") as f:
-                json.dump(data_list, f, indent=4)
+        # Adjust 'bid' and 'ask' based on 'underlying_prices'
+        df["bid"] *= underlying_prices
+        df["ask"] *= underlying_prices
+        df["mark_price"] *= underlying_prices
 
-            with open("okx_raw_data.json", "w") as f:
-                json.dump(all_tickers, f, indent=4)
+        df["underlying_price"] = underlying_prices
 
-        except Exception as e:
-            logging.error(f"Error fetching tickers from OKX: {e}")
+        # Convert timestamp to datetime
+        df["datetime"] = pd.to_datetime(df["timestamp"], unit="ms")
 
-        return pd.DataFrame(data_list)
+        # Efficient expiry date parsing (assuming this can be vectorized or is already efficient)
+        df["expiry"] = df["symbol"].apply(self.date_parser)
 
-    def fetch_market_data_binance(self, market_symbols: list[str]) -> pd.DataFrame:
-        """
-        Fetches market data for a given list of market symbols from Binance exchange.
-        Args:
-            market_symbols: A list of symbols in the format recognized by Binance (e.g., "BTC-240628-29000-P")
-        Returns:
-            pd.DataFrame: DataFrame with market data for each option contract.
-        """
-        data_list = []  # Initialize an empty list to store data dictionaries
+        # Calculate YTM
+        df["YTM"] = (df["expiry"] - df["datetime"]) / np.timedelta64(1, "Y")
 
-        try:
-            all_tickers = self.exchange.fetch_tickers(market_symbols)
-            for symbol, ticker in all_tickers.items():
-                info = ticker.get("info", {})
-                bid = float(info.get("bidPrice", 0))
-                ask = float(info.get("askPrice", 0))
-                exercise_price = float(info.get("exercisePrice", 0))
-                timestamp = ticker.get("timestamp", 0)  # Timestamp
-
-                # Construct a dictionary for each symbol with the required data
-                data_dict = {
-                    "symbol": symbol,
-                    "bid": bid,
-                    "ask": ask,
-                    "timestamp": timestamp,
-                    "underlying-asset": exercise_price,
-                }
-                data_list.append(data_dict)
-            with open("binance_data.json", "w") as f:
-                json.dump(data_list, f, indent=4)
-
-            with open("binance_raw_data.json", "w") as f:
-                json.dump(all_tickers, f, indent=4)
-
-        except Exception as e:
-            print(f"Error fetching tickers from Binance: {e}")
-
-        return pd.DataFrame(data_list)
-
-    @staticmethod
-    def date_parser(symbol):
-        # Define a list of possible date formats to try
-        date_formats = [
-            "%y%m%d",  # YYMMDD
-            "%d%b%y",  # DDMMMYY
-            "%Y%m%d",  # YYYYMMDD
-            "%m%d%Y",  # MMDDYYYY
-            "%d%m%Y",  # DDMMYYYY
+        # Select and reorder the required columns
+        return df[
+            [
+                "symbol",
+                "bid",
+                "ask",
+                "mark_price",
+                "datetime",
+                "expiry",
+                "YTM",
+                "underlying_price",
+            ]
         ]
 
-        # Split the symbol based on common separators
-        parts = symbol.replace(":", "-").replace("/", "-").replace(".", "-").split("-")
+    def process_okx_data(self, df: pd.DataFrame) -> pd.DataFrame:
+        df["datetime"] = pd.to_datetime(df["timestamp"], unit="ms")
+        df["expiry"] = df["symbol"].apply(self.date_parser)
+        df["YTM"] = (df["expiry"] - df["datetime"]) / np.timedelta64(1, "Y")
+        return df[["symbol", "bid", "ask", "datetime", "expiry", "YTM"]]
 
-        # Loop through the parts to identify potential date segment
+    def process_binance_data(self, df: pd.DataFrame) -> pd.DataFrame:
+        # Assuming 'info' contains the required details
+        df["bid"] = df["info"].apply(lambda x: float(x.get("bidPrice", 0)))
+        df["ask"] = df["info"].apply(lambda x: float(x.get("askPrice", 0)))
+        df["timestamp"] = pd.to_datetime(df["timestamp"], unit="ms")
+        df["expiry"] = df["symbol"].apply(self.date_parser)
+        df["YTM"] = (df["expiry"] - df["timestamp"]) / np.timedelta64(1, "Y")
+
+        return df[["symbol", "bid", "ask", "timestamp", "expiry", "YTM"]]
+
+    @staticmethod
+    def date_parser(symbol: str) -> pd.Timestamp:
+        date_formats = ["%y%m%d", "%d%b%y", "%Y%m%d", "%m%d%Y", "%d%m%Y"]
+        parts = symbol.replace(":", "-").replace("/", "-").replace(".", "-").split("-")
         for part in parts:
-            # Skip segments that are purely alphabetical, as they likely don't contain date info
             if part.isalpha():
                 continue
-            # Try to parse each segment with each date format until successful
             for date_format in date_formats:
                 try:
-                    date = pd.to_datetime(part, format=date_format)
-                    return date  # Return the parsed date as soon as a successful parse occurs
+                    return pd.to_datetime(part, format=date_format)
                 except ValueError:
-                    continue  # If parsing fails, try the next format
-
-        return pd.NaT  # Return Not-A-Time if no date could be parsed
+                    continue
+        return pd.NaT
