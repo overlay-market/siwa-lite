@@ -3,12 +3,10 @@ from typing import Optional, Dict, List
 import requests
 from pydantic import BaseModel
 import json
-from pydantic import BaseModel, ValidationError
 
 # Third party
 import pandas as pd
-import numpy as np
-from web3 import Web3
+
 
 # Our stuff
 from base_skin_api import BaseAPI
