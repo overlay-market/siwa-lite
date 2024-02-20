@@ -76,7 +76,7 @@ class PriceEmpire(BaseAPI):
     # Available values : 730, 440, 570, 252490 (Steam App id)
     APP_ID: int = 730
     # SOURCES: str = "buff"
-    SOURCES: List[str] = ["buff_rmb", "buff", "cs2go", "csgoempire_coins", "shadowpay"]
+    SOURCES: List[str] = ["buff_rmb", "buff", "cs2go", "csgoempire_coins", "shadowpay", "csgotm", "whitemarket"]
     DEFAULT_BASE_URL: str = "https://api.pricempire.com/"
     DAYS: int = 7  # Need for History data
 
