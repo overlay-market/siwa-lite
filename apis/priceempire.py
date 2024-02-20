@@ -75,8 +75,9 @@ class PriceEmpire(BaseAPI):
     CURRENCY: str = "USD"
     # Available values : 730, 440, 570, 252490 (Steam App id)
     APP_ID: int = 730
-    # SOURCES: str = "buff"
-    SOURCES: List[str] = ["buff_rmb", "buff", "cs2go", "csgoempire_coins", "shadowpay", "csgotm", "whitemarket"]
+    # SOURCES: str = "mannco"
+    SOURCES: List[str] = ["buff_rmb", "buff", "cs2go",
+                          "csgoempire_coins", "shadowpay", "csgotm", "whitemarket"]
     DEFAULT_BASE_URL: str = "https://api.pricempire.com/"
     DAYS: int = 7  # Need for History data
 
@@ -109,12 +110,13 @@ class PriceEmpire(BaseAPI):
         url: str = self.DEFAULT_BASE_URL + self.PRICES_ENDPOINT
         payload: dict = {
             "api_key": get_api_key(self.API_PREFIX),
+            "sources": self.SOURCES,
             "currency": self.CURRENCY,
             "appId": self.APP_ID,
-            "sources": self.SOURCES,
         }
         headers = {self.CONTENT_TYPE_KEY: self.CONTENT_TYPE}
-        response: requests.Response = requests.get(url, headers=headers, params=payload)
+        response: requests.Response = requests.get(
+            url, headers=headers, params=payload)
         data: dict = response.json()
         self.validate_api_data(PriceEmpirePrices, data)
         return data
@@ -131,7 +133,7 @@ class PriceEmpire(BaseAPI):
         """
         data: dict = self.get_prices()
 
-        prices_list: List[dict] = []
+        prices_list = []
 
         if isinstance(self.SOURCES, list):
             for market_hash_name, details in data.items():
@@ -142,11 +144,15 @@ class PriceEmpire(BaseAPI):
                         prices_list.append(prices_data)
 
         else:
-            for market_hash_name, details in data.items():
-                prices_data: dict = details.get(self.SOURCES, {})
-                if prices_data:
-                    prices_data["market_hash_name"] = market_hash_name
-                    prices_list.append(prices_data)
+            if isinstance(self.SOURCES, str):
+                for market_hash_name, details in data.items():
+                    prices_data = details.get(self.SOURCES, {})
+                    if prices_data:
+                        prices_data["market_hash_name"] = market_hash_name
+                        prices_list.append(prices_data)
+            else:
+                raise TypeError(
+                    "SOURCES should be either a string or a list of strings")
 
         df: pd.DataFrame = pd.DataFrame(prices_list)
         df[self.PRICE_KEY] = df[self.PRICE_KEY] / 100
