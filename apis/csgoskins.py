@@ -3,6 +3,7 @@ from typing import Optional, Dict, List
 import requests
 from pydantic import BaseModel
 import json
+from pydantic import BaseModel, ValidationError
 
 # Third party
 import pandas as pd

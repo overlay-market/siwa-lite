@@ -9,7 +9,7 @@ import pandas as pd
 import numpy as np
 
 # Out stuff
-import constants as c
+# import constants as c
 
 
 class BaseAPI:
@@ -46,7 +46,8 @@ class BaseAPI:
     """
 
     PRICE_KEY: str = "price"
-    MAPPING_PATH: str = os.path.join(c.DATA_DIR, "csgo/csgo_mapping.csv")
+    # MAPPING_PATH: str = os.path.join(c.DATA_DIR, "csgo/csgo_mapping.csv")
+    MAPPING_PATH: str = "csgo/csgo_mapping.csv"
     QUANTITY_MAP_KEY: str = "mapped_quantity"
     MARKET_HASH_NAME_KEY: str = "market_hash_name"
     CONTENT_TYPE_KEY: str = "Content-Type"
@@ -134,6 +135,7 @@ class BaseAPI:
         # Get caps for each skin
         mapping = pd.read_csv(self.MAPPING_PATH, index_col=0)
         mapping = mapping.rename(columns={self.QUANTITY_KEY: self.QUANTITY_MAP_KEY})
+        # print(len(mapping['market_hash_name']))
         if (k is None) and (upper_multiplier is None and lower_multiplier is None):
             raise ValueError("Must specify either k or upper/lower multipliers")
         if (k is not None) and (
@@ -257,6 +259,14 @@ class BaseAPI:
         """
         df = df.merge(caps, on=self.MARKET_HASH_NAME_KEY, how="inner")
         df["index"] = df[self.PRICE_KEY] * df[self.QUANTITY_MAP_KEY]
+        # ind = df['market_hash_name']
+        # print(len(ind))
+        # pe = caps['market_hash_name']
+        # print(len(pe))
+
+        # print(set(ind) - set(pe))
+
+        # print(set(pe) - set(ind))
         adjusted_df = self.adjust_share(
             df[["index", "lower_cap_index_share", "upper_cap_index_share"]],
             max_iter=1000,

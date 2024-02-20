@@ -75,7 +75,8 @@ class PriceEmpire(BaseAPI):
     CURRENCY: str = "USD"
     # Available values : 730, 440, 570, 252490 (Steam App id)
     APP_ID: int = 730
-    SOURCES: str = "cs2go"
+    # SOURCES: str = "shadowpay"
+    SOURCES: List[str] = ["cs2go", "csgoempire_coins", "shadowpay"]
     DEFAULT_BASE_URL: str = "https://api.pricempire.com/"
     DAYS: int = 7  # Need for History data
 
@@ -131,11 +132,21 @@ class PriceEmpire(BaseAPI):
         data: dict = self.get_prices()
 
         prices_list: List[dict] = []
-        for market_hash_name, details in data.items():
-            prices_data: dict = details.get(self.SOURCES, {})
-            if prices_data:
-                prices_data["market_hash_name"] = market_hash_name
-                prices_list.append(prices_data)
+
+        if isinstance(self.SOURCES, list):
+            for market_hash_name, details in data.items():
+                for source in self.SOURCES:
+                    prices_data: dict = details.get(source, {})
+                    if prices_data:
+                        prices_data["market_hash_name"] = market_hash_name
+                        prices_list.append(prices_data)
+
+        else:
+            for market_hash_name, details in data.items():
+                prices_data: dict = details.get(self.SOURCES, {})
+                if prices_data:
+                    prices_data["market_hash_name"] = market_hash_name
+                    prices_list.append(prices_data)
 
         df: pd.DataFrame = pd.DataFrame(prices_list)
         df[self.PRICE_KEY] = df[self.PRICE_KEY] / 100
@@ -149,3 +160,4 @@ if __name__ == "__main__":
     df: pd.DataFrame = pe.agg_data(df, pe.QUANTITY_KEY_FOR_AGG)
     caps: pd.DataFrame = pe.get_caps(df, k=100)
     index: float = pe.get_index(df, caps)
+    print(index)
