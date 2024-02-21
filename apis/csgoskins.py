@@ -161,6 +161,7 @@ class CSGOSkins(BaseAPI):
             meta=self.MARKET_HASH_NAME_KEY,
         )
         df[self.PRICE_KEY] = df[self.PRICE_KEY] / 100
+        df.to_csv("csgo.csv")
         return df
 
     def cap_compared_to_prev(self, index: float) -> float:
