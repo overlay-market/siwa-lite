@@ -1,8 +1,11 @@
 import logging
+from datetime import time, datetime
 
 import numpy as np
 import pandas as pd
 import requests
+from pandas import Timestamp
+from pandas._libs import NaTType
 
 from exchanges.fetchers.binance_fetcher import BinanceFetcher
 
@@ -58,11 +61,17 @@ class OptionFetcher:
         df["ask"] *= underlying_prices
         df["mark_price"] *= underlying_prices
 
+        df["bid_spread"] = np.maximum(df["mark_price"] - df["bid"], 0)
+        df["ask_spread"] = np.maximum(df["ask"] - df["mark_price"], 0)
+
         df["underlying_price"] = underlying_prices
 
         df["datetime"] = pd.to_datetime(df["timestamp"], unit="ms")
 
         df["expiry"] = df["symbol"].apply(self.date_parser)
+        df["strike_price"], df["option_type"] = zip(
+            *df["symbol"].apply(self.get_strike_price_and_option_type)
+        )
         df["datetime_hum"] = df["datetime"].dt.strftime("%Y-%m-%d %H:%M:%S")
         df["expiry_hum"] = df["expiry"].dt.strftime("%Y-%m-%d %H:%M:%S")
         # Calculate YTM
@@ -75,11 +84,15 @@ class OptionFetcher:
                 "bid",
                 "ask",
                 "mark_price",
+                "bid_spread",
+                "ask_spread",
                 "datetime",
                 "expiry",
                 "YTM",
                 "datetime_hum",
                 "expiry_hum",
+                "strike_price",
+                "option_type",
                 "underlying_price",
             ]
         ]
@@ -100,10 +113,14 @@ class OptionFetcher:
         df["underlying_price"] = self.exchange.fetch_ticker("BTC/USDT")["last"]
         df["bid"] *= df["underlying_price"]
         df["ask"] *= df["underlying_price"]
+
         df["datetime"] = pd.to_datetime(df["timestamp"], unit="ms")
         df["expiry"] = df["symbol"].apply(self.date_parser)
         df["datetime_hum"] = df["datetime"].dt.strftime("%Y-%m-%d %H:%M:%S")
         df["expiry_hum"] = df["expiry"].dt.strftime("%Y-%m-%d %H:%M:%S")
+        df["strike_price"], df["option_type"] = zip(
+            *df["symbol"].apply(self.get_strike_price_and_option_type)
+        )
         df["YTM"] = (df["expiry"] - df["datetime"]) / np.timedelta64(1, "Y")
 
         # Merge the mark prices into the df based on the new 'symbol'
@@ -115,6 +132,8 @@ class OptionFetcher:
             pd.to_numeric(df["mark_price"], errors="coerce").fillna(0.0)
             * df["underlying_price"]
         )
+        df["bid_spread"] = np.maximum(df["mark_price"] - df["bid"], 0)
+        df["ask_spread"] = np.maximum(df["ask"] - df["mark_price"], 0)
 
         # Select and return the desired columns, including the new 'mark_price'
         return df[
@@ -123,11 +142,15 @@ class OptionFetcher:
                 "bid",
                 "ask",
                 "mark_price",
+                "bid_spread",
+                "ask_spread",
                 "underlying_price",
                 "datetime",
                 "expiry",
                 "datetime_hum",
                 "expiry_hum",
+                "strike_price",
+                "option_type",
                 "YTM",
             ]
         ]
@@ -138,16 +161,25 @@ class OptionFetcher:
         prices = self.binance_fetcher.fetch_mark_and_underlying_price()
         prices["symbol"] = prices["symbol"].apply(self.transform_symbol_format)
 
+        df["symbol"] = df["symbol"].apply(self.convert_usdt_to_usd)
         df["bid"] = df["info"].apply(lambda x: float(x.get("bidPrice", 0)))
         df["ask"] = df["info"].apply(lambda x: float(x.get("askPrice", 0)))
 
-        df["datetime"] = pd.to_datetime(df["datetime"], unit="ms")
+        now = datetime.now()
+        df["datetime"] = pd.to_datetime(now)
+
         df["expiry"] = df["symbol"].apply(self.date_parser)
         df["datetime_hum"] = df["datetime"].dt.strftime("%Y-%m-%d %H:%M:%S")
         df["expiry_hum"] = df["expiry"].dt.strftime("%Y-%m-%d %H:%M:%S")
-        df["YTM"] = (df["expiry"] - df["timestamp"]) / np.timedelta64(1, "Y")
+        df["strike_price"], df["option_type"] = zip(
+            *df["symbol"].apply(self.get_strike_price_and_option_type)
+        )
+        df["YTM"] = (df["expiry"] - df["datetime"]) / np.timedelta64(1, "Y")
         # Merge the prices into the df based on the 'symbol'
         df = df.merge(prices, on="symbol", how="left")
+
+        df["bid_spread"] = np.maximum(df["mark_price"] - df["bid"], 0)
+        df["ask_spread"] = np.maximum(df["ask"] - df["mark_price"], 0)
 
         return df[
             [
@@ -156,16 +188,20 @@ class OptionFetcher:
                 "ask",
                 "mark_price",
                 "underlying_price",
-                "timestamp",
+                "bid_spread",
+                "ask_spread",
+                "datetime",
                 "expiry",
                 "datetime_hum",
                 "expiry_hum",
+                "strike_price",
+                "option_type",
                 "YTM",
             ]
         ]
 
     @staticmethod
-    def date_parser(symbol: str) -> pd.Timestamp:
+    def date_parser(symbol: str) -> Timestamp | Timestamp | NaTType:
         date_formats = ["%y%m%d", "%d%b%y", "%Y%m%d", "%m%d%Y", "%d%m%Y"]
         parts = symbol.replace(":", "-").replace("/", "-").replace(".", "-").split("-")
         for part in parts:
@@ -194,4 +230,22 @@ class OptionFetcher:
     @staticmethod
     def transform_symbol_format(symbol):
         parts = symbol.split("-")
-        return f"{parts[0]}/USDT:USDT-{parts[1]}-{parts[2]}-{parts[3]}"
+        return f"{parts[0]}/USD:USD-{parts[1]}-{parts[2]}-{parts[3]}"
+
+    # we need to convert BTC/USDT:USDT-240927-90000-P to BTC/USD:USD-240927-90000-P
+    @staticmethod
+    def convert_usdt_to_usd(symbol: str) -> str:
+        # Split the symbol by ':'
+        parts = symbol.split(":")
+        # For each part, replace 'USDT' with 'USD'
+        converted_parts = [part.replace("USDT", "USD") for part in parts]
+        # Join the parts back together with ':'
+        converted_symbol = ":".join(converted_parts)
+        return converted_symbol
+
+    @staticmethod
+    def get_strike_price_and_option_type(symbol: str) -> tuple[str, str]:
+        parts = symbol.split("-")
+        strike_price = parts[-2]
+        option_type = parts[-1]
+        return strike_price, option_type

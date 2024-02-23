@@ -4,6 +4,7 @@ import pandas as pd
 
 from exchanges.managers.binance_manager import BinanceManager
 from exchanges.managers.okx_manager import OKXManager
+from exchanges.processing import Processing
 from managers.deribit_manager import DeribitManager
 
 # Configure logging
@@ -18,13 +19,16 @@ def main():
             pairs_to_load=["BTC/USD:BTC"], market_types=["option", "future"]
         )
         okx = OKXManager(pairs_to_load=["BTC/USD:BTC"], market_types=["option"])
-        results = pd.DataFrame()
+        global_orderbook = pd.DataFrame()
 
         for manager in [binance, deribit, okx]:
-            results = pd.concat(
-                [results, manager.load_specific_pairs()], ignore_index=True
+            global_orderbook = pd.concat(
+                [global_orderbook, manager.load_specific_pairs()], ignore_index=True
             )
+        # process = Processing()
+        # process.process_global_orderbook(global_orderbook)
 
+        global_orderbook.to_json("global_orderbook.json", orient="records", indent=4)
     except Exception as e:
         logger.error(f"An unexpected error occurred in the main function: {e}")
 

@@ -64,9 +64,10 @@ class ExchangeManager:
         return filtered_markets
 
     def handle_market_type(self, loaded_markets: dict) -> pd.DataFrame:
+        dataframe = None
         for pair in self.pairs_to_load:
             future_symbols = loaded_markets.get(pair, {}).get("future", [])
             option_symbols = loaded_markets.get(pair, {}).get("option", [])
-            self.merge_market_handler.handle(option_symbols, future_symbols)
+            dataframe = self.merge_market_handler.handle(option_symbols, future_symbols)
 
-        return pd.DataFrame()
+        return dataframe

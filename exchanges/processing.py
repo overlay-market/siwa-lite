@@ -117,3 +117,18 @@ class Processing:
         df = df.copy()
         df["KATM"] = df[df["strike"] < df["Fimp"]].groupby("expiry")["strike"].max()
         return df
+
+    @staticmethod
+    def process_global_orderbook(self, df: pd.DataFrame) -> pd.DataFrame:
+        interest_rate_term_structure = (
+            self.processing.build_interest_rate_term_structure(df)
+        )
+        interest_rate_term_structure.to_json(
+            "interest_rate_term_structure.json", orient="records", indent=4
+        )
+
+        near_term, next_term = self.processing.near_and_next_term_options(df)
+        near_term.to_json("near_term.json", orient="records", indent=4)
+        next_term.to_json("next_term.json", orient="records", indent=4)
+
+        return interest_rate_term_structure, near_term, next_term

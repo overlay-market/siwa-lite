@@ -34,8 +34,4 @@ class MergeMarketHandler:
             f"{self.exchange}_implied_interest_rates.json", orient="records", indent=4
         )
 
-        spreads = self.processing.calculate_spreads(valid_quotes)
-        remove_large_spreads = self.processing.remove_large_spreads(spreads)
-        spreads.to_json(f"{self.exchange}_spreads.json", orient="records", indent=4)
-
-        return merged_data
+        return implied_interest_rates
