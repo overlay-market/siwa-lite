@@ -156,8 +156,6 @@ class OptionFetcher:
         ]
 
     def process_binance_data(self, df: pd.DataFrame) -> pd.DataFrame:
-        df.to_json("binance_data.json", orient="records", indent=4)
-        # Assuming 'info' contains the required details
         prices = self.binance_fetcher.fetch_mark_and_underlying_price()
         prices["symbol"] = prices["symbol"].apply(self.transform_symbol_format)
 
