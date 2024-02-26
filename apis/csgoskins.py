@@ -9,7 +9,7 @@ import pandas as pd
 
 
 # Our stuff
-from base_skin_api import BaseAPI
+from apis.base_skin_api import BaseAPI
 
 try:
     from apis.utils import get_api_key
@@ -74,6 +74,7 @@ class CSGOSkins(BaseAPI):
 
     API_PREFIX: str = "CSGO"
     QUANTITY_KEY: str = "quantity"
+    QUANTITY_KEY_FOR_AGG: str = "quantity"
     PRICES_ENDPOINT: str = "api/v1/prices"
     PRICE_HISTORIES_ENDPOINT: str = "api/v1/price-histories"
     PRICE_HISTORIES_RPM: int = 20
@@ -205,4 +206,3 @@ if __name__ == "__main__":
     df: pd.DataFrame = csgo.agg_data(df, csgo.QUANTITY_KEY)
     caps: pd.DataFrame = csgo.get_caps(df, k=100)
     index: float = csgo.get_index(df, caps)
-    print("index: ", index)

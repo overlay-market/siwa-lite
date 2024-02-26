@@ -2,13 +2,12 @@
 from typing import Dict, Optional, List
 from pydantic import BaseModel
 import requests
-import json
 
 # Third party
 import pandas as pd
 
 # Our stuff
-from base_skin_api import BaseAPI
+from apis.base_skin_api import BaseAPI
 
 try:
     from apis.utils import get_api_key
@@ -166,4 +165,3 @@ if __name__ == "__main__":
     df: pd.DataFrame = pe.agg_data(df, pe.QUANTITY_KEY_FOR_AGG)
     caps: pd.DataFrame = pe.get_caps(df, k=100)
     index: float = pe.get_index(df, caps)
-    print(index)
