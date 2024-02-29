@@ -50,12 +50,26 @@ class PriceEmpire(BaseAPI):
 
     Attributes:
     ----------
-    prices_endpoint : str
-        The API endpoint for fetching current prices of CSGO skins.
-    base_url : str
-        The base URL for the CSGOSkins API.
-    api_key : str
-        The API key to authenticate with the CSGOSkins API.
+    API_PREFIX : str
+        Prefix for the API.
+    PRICES_ENDPOINT : str
+        Endpoint for prices in the API.
+    PRICE_HISTORIES_ENDPOINT : str
+        Endpoint for price histories in the API.
+    QUANTITY_KEY : str
+        Key for quantity in the DataFrame.
+    QUANTITY_KEY_FOR_AGG : str
+        Key for the aggregated quantity in the DataFrame.
+    CURRENCY : str
+        Currency used in the API.
+    APP_ID : int
+        Application ID for the API. Available values : 730, 440, 570, 252490 (Steam App id)
+    SOURCES : List[str]
+        List of sources for the API.
+    DEFAULT_BASE_URL : str
+        Default base URL for the API.
+    DAYS : int
+        Number of days needed for history data.
 
     Methods:
     --------

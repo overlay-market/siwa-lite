@@ -52,13 +52,45 @@ class CSGOSkins(BaseAPI):
         BaseAPI: Base class for API operations.
 
     Attributes:
-    ----------
-    prices_endpoint : str
-        The API endpoint for fetching current prices of CSGO skins.
-    base_url : str
-        The base URL for the CSGOSkins API.
-    api_key : str
-        The API key to authenticate with the CSGOSkins API.
+    -----------
+    API_PREFIX : str
+        Prefix for the API.
+    QUANTITY_KEY : str
+         Key for quantity in the DataFrame.
+    QUANTITY_KEY_FOR_AGG : str
+         Key for the aggregated quantity in the DataFrame.
+    PRICES_ENDPOINT : str
+         Endpoint for prices in the API.
+    PRICE_HISTORIES_ENDPOINT : str
+         Endpoint for price histories in the API.
+    PRICE_HISTORIES_RPM : ints
+         Requests per minute for price histories.
+    DEFAULT_BASE_URL : str
+         Default base URL for the API.
+    DEFAULT_RANGE : str
+         Default range for the API.
+    DEFAULT_AGG : str
+         Default aggregator for the API.
+    AUTH_TYPE : str
+         Type of authorization for the API.
+    RANGE_KEY : str
+         Key for range in the DataFrame.
+    AGGREGATOR_KEY : str
+         Key for aggregator in the DataFrame.
+    DATA_KEY : str
+         Key for data in the DataFrame.
+    PRICES_KEY : str
+         Key for prices in the DataFrame.
+    AUTHORIZATION_KEY : str
+         Key for authorization in the DataFrame.
+    GOERLI_URL : str
+         URL for Goerli network.
+    INFURA_PREFIX : str
+         Prefix for Infura.
+    CONTRACT_ADD_FILE : str
+         File path for the contract address.
+    ABI_FILE : str
+         File path for the ABI.
 
     Methods:
     --------
