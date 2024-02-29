@@ -20,6 +20,9 @@ class MergeMarketHandler:
         self, options_market: List[str], future_market: List[str] | None
     ) -> pd.DataFrame:
         options_data = self.option_market_handler.handle(options_market)
+        options_data.to_json(
+            f"{self.exchange}_options_data.json", orient="records", indent=4
+        )
         if future_market:
             futures_data = self.future_market_handler.handle(future_market)
             merged_data = pd.concat([options_data, futures_data], ignore_index=True)

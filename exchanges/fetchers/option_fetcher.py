@@ -157,6 +157,7 @@ class OptionFetcher:
 
     def process_binance_data(self, df: pd.DataFrame) -> pd.DataFrame:
         prices = self.binance_fetcher.fetch_mark_and_underlying_price()
+        print(prices)
         prices["symbol"] = prices["symbol"].apply(self.transform_symbol_format)
 
         df["symbol"] = df["symbol"].apply(self.convert_usdt_to_usd)
@@ -174,6 +175,7 @@ class OptionFetcher:
         )
         df["YTM"] = (df["expiry"] - df["datetime"]) / np.timedelta64(1, "Y")
         # Merge the prices into the df based on the 'symbol'
+        print(prices)
         df = df.merge(prices, on="symbol", how="left")
 
         df["bid_spread"] = np.maximum(df["mark_price"] - df["bid"], 0)
@@ -186,6 +188,7 @@ class OptionFetcher:
                 "ask",
                 "mark_price",
                 "underlying_price",
+                "forward_price",
                 "bid_spread",
                 "ask_spread",
                 "datetime",

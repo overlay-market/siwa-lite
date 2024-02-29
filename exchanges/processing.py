@@ -12,9 +12,9 @@ class Processing:
         # Calculate implied interest rates
         df = df.copy()
 
-        df["rimp"] = (np.log(df["mark_price"]) - np.log(df["underlying_price"])) / df[
-            "YTM"
-        ]
+        df["rimp"] = (
+            np.log(df["forward_price"]) - np.log(df["underlying_price"])
+        ) / df["YTM"]
 
         # Rimp = (ln F − ln S)/T
         return df

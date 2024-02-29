@@ -44,32 +44,86 @@ class BinanceFetcher:
 
     @staticmethod
     def fetch_mark_and_underlying_price():
-        mark_prices = BinanceFetcher.get_response(
+        mark_prices_options = BinanceFetcher.get_response(
             BINANCE_API_OPTIONS_URL + "/eapi/v1/mark"
         )
         underlying_price = BinanceFetcher.get_response(
             BINANCE_API_SPOT_URL + "/api/v3/ticker/price"
         )
         underlying_price_df = pd.DataFrame(underlying_price)
-        data_df = pd.DataFrame(mark_prices)
-        data_df = data_df.loc[data_df["symbol"].str.contains("BTC-")]
+        mark_prices_options_df = pd.DataFrame(mark_prices_options)
+        mark_prices_options_df = mark_prices_options_df.loc[
+            mark_prices_options_df["symbol"].str.contains("BTC-")
+        ]
+        forward_prices = BinanceFetcher.fetch_mark_price_futures()
 
         # Ensure that only the BTCUSDT price is fetched to match "BTC-" symbols
         ud_price = underlying_price_df.loc[
             underlying_price_df["symbol"] == "BTCUSDT", "price"
         ].iloc[0]
 
-        data_df["underlying_price"] = float(ud_price)
-        data_df.rename(columns={"markPrice": "mark_price"}, inplace=True)
+        mark_prices_options_df["underlying_price"] = float(ud_price)
+        mark_prices_options_df.rename(columns={"markPrice": "mark_price"}, inplace=True)
 
         # Convert "mark_price" to float
-        data_df["mark_price"] = data_df["mark_price"].astype(float)
+        mark_prices_options_df["mark_price"] = mark_prices_options_df[
+            "mark_price"
+        ].astype(float)
+        mark_prices_options_df["expiry"] = (
+            mark_prices_options_df["symbol"].str.split("-").str[1]
+        )
+        mark_prices_options_df = mark_prices_options_df.merge(
+            forward_prices, on="expiry", how="right"
+        )
+        # rename symbol_x to symbol
+        mark_prices_options_df.rename(columns={"symbol_x": "symbol"}, inplace=True)
+        print(mark_prices_options_df.head())
 
-        return data_df[["symbol", "mark_price", "underlying_price"]]
+        return mark_prices_options_df[
+            ["symbol", "mark_price", "underlying_price", "forward_price"]
+        ]
+
+    @staticmethod
+    def fetch_mark_price_futures():
+        symbols = BinanceFetcher.fetch_futures_symbols()
+        mark_prices = []  # This will hold dictionaries
+        for symbol in symbols:
+            data = BinanceFetcher.get_response(
+                BINANCE_API_FUTURES_URL + f"/fapi/v1/depth?symbol={symbol}"
+            )
+
+            bids_df = pd.DataFrame(data["bids"], columns=["price", "quantity"]).astype(
+                {"price": "float"}
+            )
+            asks_df = pd.DataFrame(data["asks"], columns=["price", "quantity"]).astype(
+                {"price": "float"}
+            )
+
+            # Get maximum bid and minimum ask
+            best_bid = bids_df["price"].max()
+            best_ask = asks_df["price"].min()
+
+            forward_price = (best_bid + best_ask) / 2
+            expiry = symbol.split("_")[1]
+
+            mark_prices.append(
+                {
+                    "symbol": symbol,
+                    "best_bid": best_bid,
+                    "best_ask": best_ask,
+                    "forward_price": forward_price,
+                    "expiry": expiry,
+                }
+            )
+
+        mark_prices_df = pd.DataFrame(mark_prices)
+        return mark_prices_df
 
     @staticmethod
     def fetch_futures_symbols():
-        data = BinanceFetcher.get_response(BINANCE_API_FUTURES_URL)
+        data = BinanceFetcher.get_response(
+            BINANCE_API_FUTURES_URL + "/fapi/v1/premiumIndex"
+        )
         if data:
             return [
                 res.get("symbol") for res in data if "BTCUSDT_" in res.get("symbol", "")
