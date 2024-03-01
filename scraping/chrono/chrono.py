@@ -56,14 +56,21 @@ class Chrono24Scraper:
             )
             prices = soup.find_all("span", class_="currency")
 
+            marks = soup.find_all(
+                "div", class_="text-sm text-sm-md text-ellipsis m-b-2"
+            )
+
             if len(titles) != len(prices):
                 logging.error("Number of titles and prices do not match")
                 return
             for i in range(len(titles)):
                 title = titles[i].text.strip()
                 price = prices[i].next_sibling.strip()
-                self.data.append({"Name": title, "Price": price})
-                logging.info(f"Name: {title}, Price: {price}$")
+                mark = marks[i].text.strip()
+                self.data.append(
+                    {"Watch_Name": title, "Price": price, "Watch_Mark": mark}
+                )
+                logging.info(f"Name: {title}, Price: {price}$, Mark: {mark}")
         else:
             logging.error(
                 "Failed to retrieve the webpage. Status code: %d", response.status_code
@@ -120,8 +127,8 @@ class Chrono24Scraper:
         -------
         None
         """
-        df = pd.DataFrame(self.data, columns=["Name", "Price"])
-        df.to_csv(filename, index=False)
+        df = pd.DataFrame(self.data, columns=["Watch_Name", "Price", "Watch_Mark"])
+        df.to_csv(filename, index=True)
         logging.info(f"Data saved to {filename}")
 
 
