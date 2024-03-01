@@ -1,14 +1,19 @@
+from typing import List
 import requests
 from bs4 import BeautifulSoup
+import pandas as pd
 
 
 class Chrono24Scraper:
-    def __init__(self):
-        self.headers = {
-            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/58.0.3029.110 Safari/537.3"
-        }
+    User_Agent: str = (
+        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/58.0.3029.110 Safari/537.3"
+    )
 
-    def scrape_names_from_page(self, url):
+    def __init__(self) -> None:
+        self.headers: dict = {"User-Agent": self.User_Agent}
+        self.data: List[str] = []
+
+    def scrape_names_from_page(self, url: str) -> None:
         response = requests.get(url, headers=self.headers)
         if response.status_code == 200:
             soup = BeautifulSoup(response.content, "html.parser")
@@ -23,23 +28,33 @@ class Chrono24Scraper:
         else:
             print("Failed to retrieve the webpage. Status code:", response.status_code)
 
-    def scrape_all_pages(self, base_url, start_page=1):
+    def scrape_all_pages(self, base_url: str, start_page: int = 1) -> None:
         page_number = start_page
-        while True:
+        while page_number <= 50:
             url = base_url.format(page_number)
-            response = requests.get(url, headers=self.headers)
-            if response.status_code == 200:
-                print(f"Scraping page {page_number}")
-                self.scrape_names_from_page(url)
-                page_number += 1
-            else:
-                print(
-                    "Failed to retrieve the webpage. Status code:", response.status_code
-                )
-                break  # Stop scraping if there's an issue fetching the page
+            try:
+                response = requests.get(url, headers=self.headers)
+                if response.status_code == 200:
+                    print(f"Scraping page {page_number}")
+                    self.scrape_names_from_page(url)
+                    page_number += 1
+                else:
+                    print(
+                        "Failed to retrieve the webpage. Status code:",
+                        response.status_code,
+                    )
+                    break
+            except requests.exceptions.RequestException as e:
+                print("An error occurred while making the request:", e)
+                break
+
+    def save_to_csv(self, filename: str = "chrono24_data.csv") -> None:
+        df = pd.DataFrame(self.data, columns=["Name", "Price"])
+        df.to_csv(filename, index=False)
 
 
 if __name__ == "__main__":
     scraper = Chrono24Scraper()
     base_url = "https://www.chrono24.com/rolex/index-{}.htm?query=Rolex"
     scraper.scrape_all_pages(base_url)
+    scraper.save_to_csv()
