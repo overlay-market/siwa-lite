@@ -23,16 +23,21 @@ class Chrono24Scraper:
                 "div", class_="text-sm text-sm-md text-bold text-ellipsis"
             )
             prices = soup.find_all("span", class_="currency")
+
+            if len(titles) != len(prices):
+                logging.error("Number of titles and prices do not match")
+                return
             for i in range(len(titles)):
                 title = titles[i].text.strip()
                 price = prices[i].next_sibling.strip()
+                self.data.append({"Name": title, "Price": price})
                 logging.info(f"Name: {title}, Price: {price}$")
         else:
             logging.error("Failed to retrieve the webpage. Status code: %d", response.status_code)
 
     def scrape_all_pages(self, base_url: str, start_page: int = 1) -> None:
         page_number = start_page
-        while True:
+        while page_number <= 5:
             url = base_url.format(page_number)
             try:
                 response = requests.get(url, headers=self.headers)
