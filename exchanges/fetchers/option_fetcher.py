@@ -156,10 +156,6 @@ class OptionFetcher:
         ]
 
     def process_binance_data(self, df: pd.DataFrame) -> pd.DataFrame:
-        prices = self.binance_fetcher.fetch_mark_and_underlying_price()
-        print(prices)
-        prices["symbol"] = prices["symbol"].apply(self.transform_symbol_format)
-
         df["symbol"] = df["symbol"].apply(self.convert_usdt_to_usd)
         df["bid"] = df["info"].apply(lambda x: float(x.get("bidPrice", 0)))
         df["ask"] = df["info"].apply(lambda x: float(x.get("askPrice", 0)))
@@ -174,12 +170,23 @@ class OptionFetcher:
             *df["symbol"].apply(self.get_strike_price_and_option_type)
         )
         df["YTM"] = (df["expiry"] - df["datetime"]) / np.timedelta64(1, "Y")
-        # Merge the prices into the df based on the 'symbol'
-        print(prices)
-        df = df.merge(prices, on="symbol", how="left")
+        df["underlying_price"] = self.binance_fetcher.fetch_spot_price("BTCUSDT")
 
-        df["bid_spread"] = np.maximum(df["mark_price"] - df["bid"], 0)
-        df["ask_spread"] = np.maximum(df["ask"] - df["mark_price"], 0)
+        forward_prices_df = self.binance_fetcher.fetch_mark_price_futures()
+        forward_prices_df['expiry'] = pd.to_datetime(forward_prices_df['expiry'], format='%y%m%d')
+        # find all dates between forward_prices_df["expiry"]) in df["expiry"]
+        filtered_dates_df = df[df["expiry"].between(forward_prices_df["expiry"].min(), forward_prices_df["expiry"].max())]
+        # Now We have in forward_prices_df:
+        # symbol  forward_price     expiry
+        # 0  BTCUSDT_240628       66702.85 2024-06-28
+        # 1  BTCUSDT_240329       63982.80 2024-03-29
+        # I want to calculate the forward price for each expiry date in df["expiry"] like for 2024-04-01
+        print(forward_prices_df)
+        filtered_dates_df.to_json("df.json", orient="records", indent=4)
+
+        df = df.merge(forward_prices_df, on="symbol", how="left")
+
+
 
         return df[
             [
@@ -217,14 +224,12 @@ class OptionFetcher:
 
     @staticmethod
     def convert_inst_id_to_symbol(inst_id: str) -> str:
-        # Split the instId into its components
         parts = inst_id.split("-")
         currency = f"{parts[0]}/{parts[1]}"  # e.g., BTC/USD
         date = parts[2][:2] + parts[2][2:4] + parts[2][4:]  # Reformat date
         strike_price = parts[3]
         option_type = parts[4]
 
-        # Reassemble into the symbol format
         symbol = f"{currency}:{parts[0]}-{date}-{strike_price}-{option_type}"
         return symbol
 
@@ -233,14 +238,10 @@ class OptionFetcher:
         parts = symbol.split("-")
         return f"{parts[0]}/USD:USD-{parts[1]}-{parts[2]}-{parts[3]}"
 
-    # we need to convert BTC/USDT:USDT-240927-90000-P to BTC/USD:USD-240927-90000-P
     @staticmethod
     def convert_usdt_to_usd(symbol: str) -> str:
-        # Split the symbol by ':'
         parts = symbol.split(":")
-        # For each part, replace 'USDT' with 'USD'
         converted_parts = [part.replace("USDT", "USD") for part in parts]
-        # Join the parts back together with ':'
         converted_symbol = ":".join(converted_parts)
         return converted_symbol
 
