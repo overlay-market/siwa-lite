@@ -11,10 +11,6 @@ class LuxuryWatchesScraper(BaseScraper):
     ----------
     User_Agent : str
         User agent string for making requests.
-    headers : dict
-        Headers to be used in HTTP requests.
-    data : List[str]
-        List to store scraped data.
     """
 
     User_Agent: str = (
@@ -37,11 +33,13 @@ class LuxuryWatchesScraper(BaseScraper):
 
         Parameters:
         ----------
-        None
+        response : requests.Response
+            The HTTP response object.
 
         Returns:
         -------
-        None
+        Tuple[List[Tag], List[Tag]]
+            A tuple containing lists of Beautiful Soup tags for titles, prices.
         """
         soup = BeautifulSoup(response.content, "html.parser")
         titles = soup.find_all(

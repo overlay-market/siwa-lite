@@ -10,8 +10,6 @@ class BaseScraper:
 
     Attributes:
     ----------
-    User_Agent : str
-        User agent string for making requests.
     headers : dict
         Headers to be used in HTTP requests.
     data : List[str]
@@ -38,13 +36,6 @@ class BaseScraper:
         ----------
         url : str
             The URL of the page to scrape.
-        titles_selector : str
-            CSS selector for the titles of the items.
-        prices_selector : str
-            CSS selector for the prices of the items.
-        marks_selector : str, optional
-            CSS selector for additional marks or information. Default is None.
-
         Returns:
         -------
         None
