@@ -1,0 +1,131 @@
+import logging
+from typing import List
+import requests
+import pandas as pd
+
+
+class BaseScraper:
+    """
+    A base class for web scrapers.
+
+    Attributes:
+    ----------
+    User_Agent : str
+        User agent string for making requests.
+    headers : dict
+        Headers to be used in HTTP requests.
+    data : List[str]
+        List to store scraped data.
+    """
+
+    def __init__(self) -> None:
+        """
+        Initializes the BaseScraper class.
+
+        Parameters:
+        ----------
+        None
+        """
+        self.headers: dict = {"User-Agent": self.User_Agent}
+        self.data: List[str] = []
+        logging.basicConfig(level=logging.INFO)
+
+    def scrape_names_from_page(cls, url) -> None:
+        """
+        Scrapes data from a single page.
+
+        Parameters:
+        ----------
+        url : str
+            The URL of the page to scrape.
+        titles_selector : str
+            CSS selector for the titles of the items.
+        prices_selector : str
+            CSS selector for the prices of the items.
+        marks_selector : str, optional
+            CSS selector for additional marks or information. Default is None.
+
+        Returns:
+        -------
+        None
+        """
+        response = requests.get(url, headers=cls.headers)
+        if response.status_code == 200:
+            extract = cls.extract_data(response)
+
+            min_length = min(len(extract[0]), len(extract[1]))
+
+            for i in range(min_length):
+                title = extract[0][i].text.strip()
+                price = extract[1][i].next_sibling.strip()
+                mark = extract[2][i].text.strip() if len(extract) > 2 else None
+                cls.data.append(
+                    {"Watch_Name": title, "Price": price, "Watch_Mark": mark}
+                )
+                logging.info(f"Name: {title}, Price: {price}, Mark: {mark}")
+
+        else:
+            logging.error(
+                "Failed to retrieve the webpage. Status code: %d", response.status_code
+            )
+
+    def scrape_all_pages(
+        self, base_url: str, start_page: int = 1, num_pages: int = 5
+    ) -> None:
+        """
+        Scrapes data from multiple pages.
+
+        Parameters:
+        ----------
+        base_url : str
+            The base URL of the website to scrape.
+        start_page : int, optional
+            The starting page number. Default is 1.
+        num_pages : int, optional
+            The number of pages to scrape. Default is 5.
+
+        Returns:
+        -------
+        None
+        """
+        page_number = start_page
+        while page_number <= num_pages:
+            url = base_url.format(page_number)
+            try:
+                response = requests.get(url, headers=self.headers)
+                if response.status_code == 200:
+                    logging.info(f"Scraping page {page_number}")
+                    self.scrape_names_from_page(url)
+                    page_number += 1
+                else:
+                    logging.error(
+                        "Failed to retrieve the webpage. Status code: %d",
+                        response.status_code,
+                    )
+                    break
+            except requests.exceptions.RequestException as e:
+                logging.error("An error occurred while making the request: %s", e)
+                break
+
+    def save_to_csv(self, filename: str, include_mark: bool = True) -> None:
+        """
+        Saves scraped data to a CSV file.
+
+        Parameters:
+        ----------
+        filename : str
+            The name of the CSV file.
+        include_mark : bool, optional
+            Whether to include the "Watch_Mark" column, by default True.
+
+        Returns:
+        -------
+        None
+        """
+        columns = ["Watch_Name", "Price"]
+        if include_mark:
+            columns.append("Watch_Mark")
+
+        df = pd.DataFrame(self.data, columns=columns)
+        df.to_csv(filename, index=True)
+        logging.info(f"Data saved to {filename}")
