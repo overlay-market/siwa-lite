@@ -1,22 +1,44 @@
+# Importing necessary modules
 from selenium import webdriver
 from selenium.webdriver.common.by import By
-from typing import List
 import time
 import logging
-import pandas as pd
-
-logging.basicConfig(level=logging.INFO)
+from base_scraper import BaseScraper
 
 
-class RolexScraper:
+class WorldWatches(BaseScraper):
+    """
+    A web scraper for extracting watch names and prices from World of Watches.
+
+    Attributes:
+    ----------
+    User_Agent : str
+        User agent string for making requests.
+    """
+
+    User_Agent: str = (
+        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/58.0.3029.110 Safari/537.3"
+    )
+
     def __init__(self, url):
+        """
+        Initializes the WorldWatches class.
+
+        Parameters:
+        ----------
+        url : str
+            The URL of the website to be scraped.
+        """
+        super().__init__()
         self.url = url
         self.driver = webdriver.Chrome()
         self.driver.get(self.url)
-        self.data: List[str] = []
         time.sleep(10)
 
     def scrape(self):
+        """
+        Scrapes the website for watch names, prices, and marks.
+        """
         while True:
             try:
                 load_more_button = self.driver.find_element(
@@ -33,48 +55,28 @@ class RolexScraper:
         prices = self.driver.find_elements(
             By.CLASS_NAME, "syte-ts-original-price-value"
         )
-        h2_elements = self.driver.find_elements(By.TAG_NAME, "h2")
+        marks = self.driver.find_elements(By.TAG_NAME, "h2")
 
         titles = [element.text for element in elements]
         prices = [element.text for element in prices]
-        marks = [element.text for element in h2_elements]
+        marks = [element.text for element in marks]
 
         for title, price, mark in zip(titles, prices, marks):
             self.data.append({"Watch_Name": title, "Price": price, "Watch_Mark": mark})
             logging.info(f"Name: {title}, Price: {price}, Mark: {mark}")
 
-    def save_to_csv(self, filename: str, include_mark: bool = True) -> None:
-        """
-        Saves scraped data to a CSV file.
-
-        Parameters:
-        ----------
-        filename : str
-            The name of the CSV file.
-        include_mark : bool, optional
-            Whether to include the "Watch_Mark" column, by default True.
-
-        Returns:
-        -------
-        None
-        """
-        columns = ["Watch_Name", "Price"]
-        if include_mark:
-            columns.append("Watch_Mark")
-
-        df = pd.DataFrame(self.data, columns=columns)
-        df.to_csv(filename, index=True)
-        logging.info(f"Data saved to {filename}")
-
     def close(self):
+        """
+        Closes the webdriver.
+        """
         self.driver.quit()
 
 
 if __name__ == "__main__":
-    scraper = RolexScraper(
+    scraper = WorldWatches(
         "https://www.worldofwatches.com/syte/search/result?query=rolex&from=0&filters=%7B%7D&filtersDisplayNames=%7B%7D"
     )
     scraper.scrape()
     time.sleep(15)
-    scraper.save_to_csv("rolex_watches.csv", include_mark=True)
+    scraper.save_to_csv("world_of_watches.csv", include_mark=True)
     scraper.close()
