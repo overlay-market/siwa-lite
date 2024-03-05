@@ -38,6 +38,15 @@ class WorldWatches(BaseScraper):
     def scrape(self):
         """
         Scrapes the website for watch names, prices, and marks.
+
+        This method iterates through the website, clicking on the "Load More" button
+        until there are no more products to load. Then, it extracts watch names,
+        prices, and marks from the loaded page and appends them to the data attribute
+        of the WorldWatches class.
+
+        Returns:
+        ----------
+        None
         """
         while True:
             try:
