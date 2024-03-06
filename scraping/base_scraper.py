@@ -1,8 +1,10 @@
 import logging
 from typing import List
 import requests
+from requests.adapters import HTTPAdapter
+from requests.packages.urllib3.util.retry import Retry
 import pandas as pd
-
+import time
 
 class BaseScraper:
     """
@@ -27,6 +29,14 @@ class BaseScraper:
         self.headers: dict = {"User-Agent": self.User_Agent}
         self.data: List[str] = []
         logging.basicConfig(level=logging.INFO)
+        retry_strategy = Retry(
+            total=3,
+            backoff_factor=1
+        )
+        adapter = HTTPAdapter(max_retries=retry_strategy)
+        self.http = requests.Session()
+        self.http.mount("https://", adapter)
+        self.http.mount("http://", adapter)
 
     def scrape_names_from_page(cls, url) -> None:
         """
@@ -40,7 +50,7 @@ class BaseScraper:
         -------
         None
         """
-        response = requests.get(url, headers=cls.headers)
+        response = cls.http.get(url, headers=cls.headers)
         if response.status_code == 200:
             extract = cls.extract_data(response)
 
@@ -80,14 +90,15 @@ class BaseScraper:
         None
         """
         page_number = start_page
-        while page_number <= num_pages:
+        while True:
             url = base_url.format(page_number)
             try:
-                response = requests.get(url, headers=self.headers)
+                response = self.http.get(url, headers=self.headers, verify=False)
                 if response.status_code == 200:
                     logging.info(f"Scraping page {page_number}")
                     self.scrape_names_from_page(url)
                     page_number += 1
+                    time.sleep(3)
                 else:
                     logging.error(
                         "Failed to retrieve the webpage. Status code: %d",
@@ -120,3 +131,4 @@ class BaseScraper:
         df = pd.DataFrame(self.data, columns=columns)
         df.to_csv(filename, index=True)
         logging.info(f"Data saved to {filename}")
+
