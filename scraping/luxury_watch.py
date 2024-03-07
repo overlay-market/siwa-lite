@@ -50,8 +50,7 @@ class LuxuryWatchesScraper(BaseScraper):
 
 
 if __name__ == "__main__":
-    # Main function to initiate scraping and saving
     scraper = LuxuryWatchesScraper()
-    base_url = "https://luxurywatchesusa.com/page/{}/?s=patek&post_type=product"
+    base_url = "https://luxurywatchesusa.com/page/{}/?s=rolex&post_type=product"
     scraper.scrape_all_pages(base_url)
     scraper.save_to_csv(filename="luxury_watches.csv", include_mark=False)

@@ -6,6 +6,7 @@ from requests.packages.urllib3.util.retry import Retry
 import pandas as pd
 import time
 
+
 class BaseScraper:
     """
     A base class for web scrapers.
@@ -29,10 +30,7 @@ class BaseScraper:
         self.headers: dict = {"User-Agent": self.User_Agent}
         self.data: List[str] = []
         logging.basicConfig(level=logging.INFO)
-        retry_strategy = Retry(
-            total=3,
-            backoff_factor=1
-        )
+        retry_strategy = Retry(total=3, backoff_factor=1)
         adapter = HTTPAdapter(max_retries=retry_strategy)
         self.http = requests.Session()
         self.http.mount("https://", adapter)
@@ -70,8 +68,10 @@ class BaseScraper:
                 "Failed to retrieve the webpage. Status code: %d", response.status_code
             )
 
+        time.sleep(10)
+
     def scrape_all_pages(
-        self, base_url: str, start_page: int = 1, num_pages: int = 5
+        self, base_url: str, start_page: int = 1, num_pages: int = 6
     ) -> None:
         """
         Scrapes data from multiple pages.
@@ -98,7 +98,7 @@ class BaseScraper:
                     logging.info(f"Scraping page {page_number}")
                     self.scrape_names_from_page(url)
                     page_number += 1
-                    time.sleep(3)
+                    time.sleep(5)
                 else:
                     logging.error(
                         "Failed to retrieve the webpage. Status code: %d",
@@ -131,4 +131,3 @@ class BaseScraper:
         df = pd.DataFrame(self.data, columns=columns)
         df.to_csv(filename, index=True)
         logging.info(f"Data saved to {filename}")
-

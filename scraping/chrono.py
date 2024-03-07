@@ -51,7 +51,6 @@ class Chrono24Scraper(BaseScraper):
 
 
 if __name__ == "__main__":
-    # Main function to initiate scraping and saving
     scraper = Chrono24Scraper()
     base_url = "https://www.chrono24.com/rolex/index-{}.htm?query=Rolex"
     scraper.scrape_all_pages(base_url)
