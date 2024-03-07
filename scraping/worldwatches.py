@@ -17,7 +17,7 @@ class WorldWatches(BaseScraper):
     """
 
     User_Agent: str = (
-        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/58.0.3029.110 Safari/537.3"
+        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/58.0.3029.110 Safari/537.36"
     )
 
     def __init__(self, url):
@@ -50,6 +50,7 @@ class WorldWatches(BaseScraper):
         """
         while True:
             try:
+                time.sleep(5)  # Add a sleep to avoid getting blocked
                 load_more_button = self.driver.find_element(
                     By.CLASS_NAME, "products-styles__LoadMoreButton-sc-1qarpt3-4"
                 )
