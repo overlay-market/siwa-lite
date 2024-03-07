@@ -14,9 +14,6 @@ class FutureMarketHandler:
         self.market_types = market_types
         self.data_fetcher = FutureFetcher(exchange)
 
-    def handle(self, market_symbols: List[str]) -> pd.DataFrame:
-        market_data = self.data_fetcher.fetch_future_market_data(
-            market_symbols, str(self.exchange)
-        )
-
-        return market_data
+    def handle(self) -> dict:
+        future_symbols = self.data_fetcher.fetch_future_market_symbols("BTC")
+        return self.data_fetcher.fetch_all_implied_interest_rates(future_symbols)

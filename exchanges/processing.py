@@ -8,16 +8,24 @@ from exchanges.constants.utils import SPREAD_MIN, SPREAD_MULTIPLIER, RANGE_MULT
 
 class Processing:
     @staticmethod
-    def calculate_implied_interest_rates(df):
-        # Calculate implied interest rates
-        df = df.copy()
+    def calculate_yield_curve(dataframe):
+        """
+        Calculates the average interest rate for each expiry date in a pandas DataFrame.
 
-        df["rimp"] = (
-            np.log(df["forward_price"]) - np.log(df["underlying_price"])
-        ) / df["YTM"]
+        Parameters:
+        - dataframe: A pandas DataFrame containing at least two columns: 'expiry' and 'implied_interest_rate'.
 
-        # Rimp = (ln F − ln S)/T
-        return df
+        Returns:
+        - A pandas DataFrame containing the average implied interest rate for each unique expiry date.
+        """
+        # Group by the 'expiry' column, then calculate the mean of 'implied_interest_rate' for each group
+        yield_curve = dataframe.groupby('expiry')['implied_interest_rate'].mean().reset_index()
+
+        yield_curve['expiry'] = pd.to_datetime(yield_curve['expiry'], unit='ms')
+
+        yield_curve.sort_values(by='expiry', inplace=True)
+
+        return yield_curve
 
     @staticmethod
     def build_interest_rate_term_structure(df):

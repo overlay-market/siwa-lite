@@ -173,9 +173,15 @@ class OptionFetcher:
         df["underlying_price"] = self.binance_fetcher.fetch_spot_price("BTCUSDT")
 
         forward_prices_df = self.binance_fetcher.fetch_mark_price_futures()
-        forward_prices_df['expiry'] = pd.to_datetime(forward_prices_df['expiry'], format='%y%m%d')
+        forward_prices_df["expiry"] = pd.to_datetime(
+            forward_prices_df["expiry"], format="%y%m%d"
+        )
         # find all dates between forward_prices_df["expiry"]) in df["expiry"]
-        filtered_dates_df = df[df["expiry"].between(forward_prices_df["expiry"].min(), forward_prices_df["expiry"].max())]
+        filtered_dates_df = df[
+            df["expiry"].between(
+                forward_prices_df["expiry"].min(), forward_prices_df["expiry"].max()
+            )
+        ]
         # Now We have in forward_prices_df:
         # symbol  forward_price     expiry
         # 0  BTCUSDT_240628       66702.85 2024-06-28
@@ -185,8 +191,6 @@ class OptionFetcher:
         filtered_dates_df.to_json("df.json", orient="records", indent=4)
 
         df = df.merge(forward_prices_df, on="symbol", how="left")
-
-
 
         return df[
             [
