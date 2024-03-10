@@ -18,14 +18,15 @@ class Processing:
         Returns:
         - A pandas DataFrame containing the average implied interest rate for each unique expiry date.
         """
-        # Group by the 'expiry' column, then calculate the mean of 'implied_interest_rate' for each group
-        yield_curve = dataframe.groupby('expiry')['implied_interest_rate'].mean().reset_index()
+        dataframe = dataframe.sort_values(by="expiry", ascending=False)
 
-        yield_curve['expiry'] = pd.to_datetime(yield_curve['expiry'], unit='ms')
+        grouped = (
+            dataframe.groupby("expiry")["implied_interest_rate"].mean().reset_index()
+        )
 
-        yield_curve.sort_values(by='expiry', inplace=True)
-
-        return yield_curve
+        return grouped[
+            ["expiry", "implied_interest_rate", "days_to_expiry", "years_to_expiry"]
+        ]
 
     @staticmethod
     def build_interest_rate_term_structure(df):
@@ -102,43 +103,15 @@ class Processing:
         return df
 
     @staticmethod
-    def normalize_type(df):
-        df = df.copy()
-        df["symbol"] = df["symbol"].astype(str)
-        df["bid"] = df["bid"].astype(float)
-        df["ask"] = df["ask"].astype(float)
-        df["mark_price"] = df["mark_price"].astype(float)
-        df["underlying_price"] = df["underlying_price"].astype(float)
-        df["bid_spread"] = df["bid_spread"].astype(float)
-        df["ask_spread"] = df["ask_spread"].astype(float)
-        df["datetime"] = pd.to_datetime(df["datetime"])
-        df["expiry"] = pd.to_datetime(df["expiry"])
-        df["strike_price"] = df["strike_price"].astype(int)
-        df["YTM"] = df["YTM"].astype(float)
-        df["rimp"] = df["rimp"].astype(float)
-        return df
-
-    @staticmethod
     def consolidate_quotes(df):
-        df["spread"] = df["ask"] - df["bid"]
-        grouped = df.groupby(["symbol", "strike_price", "expiry", "option_type"])
-
-        agg_funcs = {
-            "bid": "max",
-            "ask": "min",
-            "mark_price": "min",
-            "underlying_price": "min",
-            "bid_spread": "min",
-            "ask_spread": "min",
-            "datetime": "min",
-            "datetime_hum": "min",
-            "YTM": "min",
-            "rimp": "min",
-        }
-
-        consolidated = grouped.agg(agg_funcs).reset_index()
-        consolidated.to_json("consolidated.json", orient="records", indent=4)
-        return consolidated
+        df = df.groupby("symbol").agg(
+            {
+                "bid": "mean",
+                "ask": "mean",
+                "mark_price": "mean",
+            }
+        ).reset_index()
+        return df
 
     @staticmethod
     def convert_datetimes_and_calculate_ytm(df):

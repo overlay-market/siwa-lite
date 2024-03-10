@@ -18,12 +18,9 @@ class MergeMarketHandler:
 
     def handle(
         self, options_market: List[str], future_market: List[str] | None
-    ) -> pd.DataFrame:
-        # options_data = self.option_market_handler.handle(options_market)
-        implied_interest_rates = self.future_market_handler.handle()
-        # valid_quotes = self.processing.eliminate_invalid_quotes(options_data)
-        implied_interest_rates.to_json(
-            f"{self.exchange}_implied_interest_rates.json", orient="records", indent=4
-        )
+    ) -> tuple[pd.DataFrame, pd.DataFrame]:
+        options_data = self.option_market_handler.handle(options_market)
+        options_data = self.processing.eliminate_invalid_quotes(options_data)
+        future_data = self.future_market_handler.handle()
 
-        return implied_interest_rates
+        return options_data, future_data

@@ -99,6 +99,18 @@ class BinanceFetcher:
         return mark_prices_options_df
 
     @staticmethod
+    def fetch_mark_price_options():
+        mark_prices_options = BinanceFetcher.get_response(
+            BINANCE_API_OPTIONS_URL + "/eapi/v1/mark"
+        )
+        mark_prices_options_df = pd.DataFrame(mark_prices_options)
+        mark_prices_options_df = mark_prices_options_df.loc[
+            mark_prices_options_df["symbol"].str.contains("BTC-")
+        ]
+
+        return mark_prices_options_df
+
+    @staticmethod
     def fetch_spot_price(symbol: str = "BTCUSDT"):
         spot_price = BinanceFetcher.get_response(
             BINANCE_API_SPOT_URL + f"/api/v3/ticker/price?symbol={symbol}"

@@ -23,30 +23,16 @@ def main():
         global_orderbook_options = pd.DataFrame()
         global_orderbook_futures = pd.DataFrame()
 
+        for manager in [binance, deribit]:
+            options, futures = manager.load_specific_pairs()
+            global_orderbook_options = pd.concat([global_orderbook_options, options]).reset_index(drop=True)
+            global_orderbook_futures = pd.concat([global_orderbook_futures, futures]).reset_index(drop=True)
 
-        for manager in [binance, deribit, okx]:
-            global_orderbook_futures = pd.concat(
-                [global_orderbook_futures, manager.load_specific_pairs()], ignore_index=True
-            )
-        global_orderbook_futures.to_json("global_orderbook.json", orient="records", indent=4)
-        yield_curve = Processing().calculate_yield_curve(global_orderbook_futures)
-        yield_curve.to_json("yield_curve.json", orient="records", indent=4)
-        # build graph
+        consolidated_options = Processing().consolidate_quotes(global_orderbook_options)
 
-        plt.figure(figsize=(10, 6))
-        plt.plot(yield_curve['expiry'], yield_curve['implied_interest_rate'], marker='o', linestyle='-',
-                 color='blue')
-        plt.title('BTC Futures Implied Interest Rate Yield Curve')
-        plt.xlabel('Expiry Date')
-        plt.ylabel('Average Implied Interest Rate (%)')
-        plt.grid(True)
-        plt.xticks(rotation=45)
-        plt.tight_layout()
-        plt.show()
-        # global_orderbook = pd.read_json("global_orderbook.json")
-        # process = Processing()
-        # x = process.process_global_orderbook(global_orderbook)
-        # x.to_json("global_orderbook_processed.json", orient="records", indent=4)
+        global_orderbook_futures.to_json("futures.json", orient="records", indent=4)
+        global_orderbook_options.to_json("options.json", orient="records", indent=4)
+        consolidated_options.to_json("consolidated_options.json", orient="records", indent=4)
 
     except Exception as e:
         logger.error(f"An unexpected error occurred in the main function: {e}")

@@ -1,9 +1,11 @@
 import json
+from typing import Tuple
 
 import ccxt
 import logging
 
 import pandas as pd
+from pandas import DataFrame
 
 from exchanges.fetchers.binance_fetcher import BinanceFetcher
 from exchanges.handlers.merge import MergeMarketHandler
@@ -27,7 +29,7 @@ class ExchangeManager:
         binance_option_symbols = self.binance_fetcher.fetch_options_symbols()
         return binance_option_symbols
 
-    def load_specific_pairs(self) -> pd.DataFrame:
+    def load_specific_pairs(self) -> tuple[DataFrame, DataFrame] | None | DataFrame:
         try:
             if self.exchange_id == "binance":
                 binance_option_symbols = self.fetch_binance_symbols()
@@ -63,7 +65,7 @@ class ExchangeManager:
                 filtered_markets[pair][market_type] = symbols
         return filtered_markets
 
-    def handle_market_type(self, loaded_markets: dict) -> pd.DataFrame:
+    def handle_market_type(self, loaded_markets: dict) -> tuple[DataFrame, DataFrame] | None:
         dataframe = None
         for pair in self.pairs_to_load:
             future_symbols = loaded_markets.get(pair, {}).get("future", [])

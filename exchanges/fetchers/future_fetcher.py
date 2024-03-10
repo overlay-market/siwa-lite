@@ -3,6 +3,7 @@ import ccxt
 import numpy as np
 import pandas as pd
 
+
 class FutureFetcher:
     def __init__(self, exchange):
         self.exchange = exchange
@@ -11,16 +12,20 @@ class FutureFetcher:
         load_markets = self.exchange.load_markets()
         load_markets_df = pd.DataFrame(load_markets).transpose()
         future_symbols = load_markets_df[
-            (load_markets_df["future"] == True) &
-            (load_markets_df["symbol"].str.contains(f"{symbol}/USD")) &
-            (load_markets_df["symbol"].str.contains(f":{symbol}"))
+            (load_markets_df["future"] == True)
+            & (load_markets_df["symbol"].str.contains(f"{symbol}/USD"))
+            & (load_markets_df["symbol"].str.contains(f":{symbol}"))
         ].index.to_list()
         return future_symbols
 
     def fetch_future_orderbook(self, symbol: str) -> dict:
         order_book = self.exchange.fetch_order_book(symbol)
-        bids_df = pd.DataFrame(order_book["bids"], columns=["price", "quantity"]).astype({"price": "float"})
-        asks_df = pd.DataFrame(order_book["asks"], columns=["price", "quantity"]).astype({"price": "float"})
+        bids_df = pd.DataFrame(
+            order_book["bids"], columns=["price", "quantity"]
+        ).astype({"price": "float"})
+        asks_df = pd.DataFrame(
+            order_book["asks"], columns=["price", "quantity"]
+        ).astype({"price": "float"})
         best_bid = bids_df["price"].max()
         best_ask = asks_df["price"].min()
 
@@ -59,6 +64,8 @@ class FutureFetcher:
             "symbol": symbol,
             "expiry": expiry_str,
             "implied_interest_rate": implied_interest_rate,
+            "days_to_expiry": days_to_expiry,
+            "years_to_expiry": years_to_expiry,
         }
 
     def fetch_all_implied_interest_rates(self, symbols: list[str]) -> pd.DataFrame:
@@ -66,5 +73,7 @@ class FutureFetcher:
         rates_data = pd.DataFrame(data)
 
         rates_data["expiry"] = pd.to_datetime(rates_data["expiry"], format="%y%m%d")
+        # expiry in human readable format
+        rates_data["expiry"] = rates_data["expiry"].dt.strftime("%Y-%m-%d")
 
         return rates_data
