@@ -63,22 +63,31 @@ class Processing:
         return df
 
     @staticmethod
-    def calculate_spreads(df):
-        df = df.copy()
-        df["bid_spread"] = (df["mark_price"] - df["bid"]).clip(lower=0)
-        df["ask_spread"] = (df["ask"] - df["mark_price"]).clip(lower=0)
-        df["spread"] = df["bid_spread"] + df["ask_spread"]
-        return df
+    def process_quotes(df: pd.DataFrame) -> pd.DataFrame:
+        # Calculate spreads
+        df['bid_spread'] = df['mark_price'] - df['bid']
+        df['ask_spread'] = df['ask'] - df['mark_price']
 
-    @staticmethod
-    def remove_large_spreads(df):
-        df = df.copy()
-        df["max_spread"] = (
-            df[["bid_spread", "ask_spread"]].min(axis=1) * SPREAD_MULTIPLIER
-        )
-        df = df[df["spread"] <= df["max_spread"]]
-        df["global_max_spread"] = SPREAD_MIN * SPREAD_MULTIPLIER
-        df = df[df["spread"] <= df["global_max_spread"]]
+        # Set spreads to zero if negative
+        df['bid_spread'] = df['bid_spread'].apply(lambda x: x if x > 0 else 0)
+        df['ask_spread'] = df['ask_spread'].apply(lambda x: x if x > 0 else 0)
+
+        # Calculate total spread
+        df['spread'] = df['bid_spread'] + df['ask_spread']
+
+        # Calculate MAS
+        df['MAS'] = df[['bid_spread', 'ask_spread']].min(axis=1) * SPREAD_MULTIPLIER
+
+        # Calculate GMS
+        GMS = SPREAD_MIN * SPREAD_MULTIPLIER
+
+        # Filter using corrected conditions
+        df = df[(df['spread'] <= GMS) | (df['spread'] <= df['MAS'])].index
+
+        # Ensure modifications are made on the original DataFrame to avoid the warning
+        df["mid_price"] = (df["bid"] + df["ask"]) / 2
+
+        # Return the filtered DataFrame without temporary columns
         return df
 
     @staticmethod

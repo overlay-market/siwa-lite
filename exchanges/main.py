@@ -30,9 +30,8 @@ def main():
 
         consolidated_options = Processing().consolidate_quotes(global_orderbook_options)
 
-        global_orderbook_futures.to_json("futures.json", orient="records", indent=4)
-        global_orderbook_options.to_json("options.json", orient="records", indent=4)
-        consolidated_options.to_json("consolidated_options.json", orient="records", indent=4)
+        process_quotes = Processing().process_quotes(consolidated_options)
+        process_quotes.to_json("quotes.json", orient="records", indent=4)
 
     except Exception as e:
         logger.error(f"An unexpected error occurred in the main function: {e}")
