@@ -64,6 +64,7 @@ class Processing:
 
     @staticmethod
     def process_quotes(df: pd.DataFrame) -> pd.DataFrame:
+        df = df.copy()
         # Calculate spreads
         df['bid_spread'] = df['mark_price'] - df['bid']
         df['ask_spread'] = df['ask'] - df['mark_price']
@@ -81,19 +82,52 @@ class Processing:
         # Calculate GMS
         GMS = SPREAD_MIN * SPREAD_MULTIPLIER
 
-        # Filter using corrected conditions
-        df = df[(df['spread'] <= GMS) | (df['spread'] <= df['MAS'])].index
+        df = df[(df['spread'] <= GMS) | (df['spread'] <= df['MAS'])]
 
-        # Ensure modifications are made on the original DataFrame to avoid the warning
+        # Extract strike price and option type (Call/Put) from the symbol
+        df['strike'] = df['symbol'].apply(lambda x: int(x.split('-')[2]))
+        df['option_type'] = df['symbol'].apply(lambda x: x[-1])
+
         df["mid_price"] = (df["bid"] + df["ask"]) / 2
-
-        # Return the filtered DataFrame without temporary columns
         return df
 
     @staticmethod
-    def calculate_mid_price(df):
-        df["mid_price"] = (df["bid"] + df["ask"]) / 2
-        return df
+    def calculate_forward_and_atm(df):
+        # YTM index
+        ytm = 30 / 365
+
+        # Merge call and put options by strike
+        calls = df[df['option_type'] == 'C'].set_index('strike')
+        puts = df[df['option_type'] == 'P'].set_index('strike')
+        merged = calls.join(puts, lsuffix='_call', rsuffix='_put', how='inner')
+
+        # Calculate the implied forward price for each strike
+        merged['F_imp'] = merged.index + np.exp(ytm) * (merged['mid_price_call'] - merged['mid_price_put'])
+
+        # Find the strike with minimum absolute mid-price difference
+        merged['mid_price_diff'] = abs(merged['mid_price_call'] - merged['mid_price_put'])
+        min_diff_strike = merged['mid_price_diff'].idxmin()
+        F_imp_at_min_diff = merged.loc[min_diff_strike, 'F_imp']
+        print(F_imp_at_min_diff)
+        F_imp_at_min_diff.to_json("forward_and_atm.json", orient="records", indent=4)
+        # Set the largest strike less than F_imp as ATM strike
+        possible_atm_strikes = [strike for strike in merged.index if strike < F_imp_at_min_diff]
+        if possible_atm_strikes:
+            K_ATM = max(possible_atm_strikes)
+        else:
+            K_ATM = None
+
+        # Select OTM options
+        otm_options = df[
+            (df['strike'] > K_ATM) & (df['option_type'] == 'C') | (df['strike'] < K_ATM) & (df['option_type'] == 'P')]
+
+        # If both call and put options for the same strike, average them
+        if K_ATM and K_ATM in calls.index and K_ATM in puts.index:
+            atm_price = (calls.loc[K_ATM, 'mid_price'] + puts.loc[K_ATM, 'mid_price']) / 2
+        else:
+            atm_price = None
+
+        return F_imp_at_min_diff, K_ATM, otm_options, atm_price
 
     @staticmethod
     def atm_strike(df):

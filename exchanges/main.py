@@ -31,6 +31,8 @@ def main():
         consolidated_options = Processing().consolidate_quotes(global_orderbook_options)
 
         process_quotes = Processing().process_quotes(consolidated_options)
+        calculate_forward_and_atm = Processing().calculate_forward_and_atm(process_quotes)
+        calculate_forward_and_atm.to_json("forward_and_atm.json", orient="records", indent=4)
         process_quotes.to_json("quotes.json", orient="records", indent=4)
 
     except Exception as e:
