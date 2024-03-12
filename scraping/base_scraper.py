@@ -56,7 +56,7 @@ class BaseScraper:
 
             for i in range(min_length):
                 title = extract[0][i].text.strip()
-                price = extract[1][i].next_sibling.strip()
+                price = extract[1][i].text.strip()
                 mark = extract[2][i].text.strip() if len(extract) > 2 else None
                 cls.data.append(
                     {"Watch_Name": title, "Price": price, "Watch_Mark": mark}
@@ -129,5 +129,5 @@ class BaseScraper:
             columns.append("Watch_Mark")
 
         df = pd.DataFrame(self.data, columns=columns)
-        df.to_csv(filename, index=True)
+        df.to_csv(filename)
         logging.info(f"Data saved to {filename}")
