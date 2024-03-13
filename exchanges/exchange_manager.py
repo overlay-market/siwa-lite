@@ -65,7 +65,9 @@ class ExchangeManager:
                 filtered_markets[pair][market_type] = symbols
         return filtered_markets
 
-    def handle_market_type(self, loaded_markets: dict) -> tuple[DataFrame, DataFrame] | None:
+    def handle_market_type(
+        self, loaded_markets: dict
+    ) -> tuple[DataFrame, DataFrame] | None:
         dataframe = None
         for pair in self.pairs_to_load:
             future_symbols = loaded_markets.get(pair, {}).get("future", [])
