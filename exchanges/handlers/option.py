@@ -23,6 +23,5 @@ class OptionMarketHandler:
         market_data = self.data_fetcher.fetch_market_data(
             market_symbols, str(self.exchange)
         )
-        market_data.to_json("option_market_data.json", orient="records", indent=4)
 
         return market_data

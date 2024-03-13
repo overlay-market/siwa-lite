@@ -66,68 +66,142 @@ class Processing:
     def process_quotes(df: pd.DataFrame) -> pd.DataFrame:
         df = df.copy()
         # Calculate spreads
-        df['bid_spread'] = df['mark_price'] - df['bid']
-        df['ask_spread'] = df['ask'] - df['mark_price']
+        df["bid_spread"] = df["mark_price"] - df["bid"]
+        df["ask_spread"] = df["ask"] - df["mark_price"]
 
         # Set spreads to zero if negative
-        df['bid_spread'] = df['bid_spread'].apply(lambda x: x if x > 0 else 0)
-        df['ask_spread'] = df['ask_spread'].apply(lambda x: x if x > 0 else 0)
+        df["bid_spread"] = df["bid_spread"].apply(lambda x: x if x > 0 else 0)
+        df["ask_spread"] = df["ask_spread"].apply(lambda x: x if x > 0 else 0)
 
         # Calculate total spread
-        df['spread'] = df['bid_spread'] + df['ask_spread']
+        df["spread"] = df["bid_spread"] + df["ask_spread"]
 
         # Calculate MAS
-        df['MAS'] = df[['bid_spread', 'ask_spread']].min(axis=1) * SPREAD_MULTIPLIER
+        df["MAS"] = df[["bid_spread", "ask_spread"]].min(axis=1) * SPREAD_MULTIPLIER
 
         # Calculate GMS
         GMS = SPREAD_MIN * SPREAD_MULTIPLIER
 
-        df = df[(df['spread'] <= GMS) | (df['spread'] <= df['MAS'])]
+        df = df[(df["spread"] <= GMS) | (df["spread"] <= df["MAS"])]
 
         # Extract strike price and option type (Call/Put) from the symbol
-        df['strike'] = df['symbol'].apply(lambda x: int(x.split('-')[2]))
-        df['option_type'] = df['symbol'].apply(lambda x: x[-1])
+        df["strike"] = df["symbol"].apply(lambda x: int(x.split("-")[2]))
+        df["option_type"] = df["symbol"].apply(lambda x: x[-1])
 
         df["mid_price"] = (df["bid"] + df["ask"]) / 2
         return df
 
     @staticmethod
-    def calculate_forward_and_atm(df):
-        # YTM index
-        ytm = 30 / 365
+    def calculate_implied_forward_price(df):
+        YTM = 30 / 365  # Approximation of 0.082192 years
 
-        # Merge call and put options by strike
-        calls = df[df['option_type'] == 'C'].set_index('strike')
-        puts = df[df['option_type'] == 'P'].set_index('strike')
-        merged = calls.join(puts, lsuffix='_call', rsuffix='_put', how='inner')
+        df_c = df[df["option_type"] == "C"].set_index("strike")
+        df_p = df[df["option_type"] == "P"].set_index("strike")
 
-        # Calculate the implied forward price for each strike
-        merged['F_imp'] = merged.index + np.exp(ytm) * (merged['mid_price_call'] - merged['mid_price_put'])
+        df_joined = df_c.join(df_p, lsuffix="_C", rsuffix="_P")
 
-        # Find the strike with minimum absolute mid-price difference
-        merged['mid_price_diff'] = abs(merged['mid_price_call'] - merged['mid_price_put'])
-        min_diff_strike = merged['mid_price_diff'].idxmin()
-        F_imp_at_min_diff = merged.loc[min_diff_strike, 'F_imp']
-        print(F_imp_at_min_diff)
-        F_imp_at_min_diff.to_json("forward_and_atm.json", orient="records", indent=4)
-        # Set the largest strike less than F_imp as ATM strike
-        possible_atm_strikes = [strike for strike in merged.index if strike < F_imp_at_min_diff]
-        if possible_atm_strikes:
-            K_ATM = max(possible_atm_strikes)
+        df_joined["mid_price_diff"] = abs(
+            df_joined["mid_price_C"] - df_joined["mid_price_P"]
+        )
+        min_diff_row = df_joined.loc[df_joined["mid_price_diff"].idxmin()]
+
+        Fimp = min_diff_row.name + YTM * (
+            min_diff_row["mid_price_C"] - min_diff_row["mid_price_P"]
+        )
+
+        return Fimp, min_diff_row.name
+
+    @staticmethod
+    def select_otm_options(df, Fimp):
+        # Identify ATM strike
+        KATM = df[df["strike"] < Fimp]["strike"].max()
+
+        # Select OTM options: For calls, strike > KATM; For puts, strike < KATM
+        otm_calls = df[(df["strike"] > KATM) & (df["option_type"] == "C")]
+        otm_puts = df[(df["strike"] < KATM) & (df["option_type"] == "P")]
+
+        # Calculate average mid-price for KATM if applicable
+        if KATM in df["strike"].values:
+            avg_mid_price_KATM = df[df["strike"] == KATM]["mid_price"].mean()
         else:
-            K_ATM = None
+            avg_mid_price_KATM = None
 
-        # Select OTM options
-        otm_options = df[
-            (df['strike'] > K_ATM) & (df['option_type'] == 'C') | (df['strike'] < K_ATM) & (df['option_type'] == 'P')]
+        return KATM, otm_calls, otm_puts, avg_mid_price_KATM
 
-        # If both call and put options for the same strike, average them
-        if K_ATM and K_ATM in calls.index and K_ATM in puts.index:
-            atm_price = (calls.loc[K_ATM, 'mid_price'] + puts.loc[K_ATM, 'mid_price']) / 2
-        else:
-            atm_price = None
+    @staticmethod
+    def filter_and_sort_options(df, Fimp, RANGE_MULT=2.5, min_bid_threshold=0.01):
+        """
+        Filters options based on dynamically calculated Kmin and Kmax from Fimp and RANGE_MULT.
+        Then sorts the remaining options by strike and eliminates options after observing
+        five consecutive bid prices <= min_bid_threshold.
 
-        return F_imp_at_min_diff, K_ATM, otm_options, atm_price
+        :param df: DataFrame containing options data.
+        :param Fimp: Calculated implied forward price.
+        :param RANGE_MULT: Multiplier to set the range of strike prices.
+        :param min_bid_threshold: Minimum bid threshold, equal to tick size.
+        :return: Filtered and sorted DataFrame.
+        """
+        Kmin = Fimp / RANGE_MULT
+        Kmax = Fimp * RANGE_MULT
+
+        filtered_df = df[(df["strike"] > Kmin) & (df["strike"] < Kmax)]
+
+        sorted_df = filtered_df.sort_values(by="strike")
+
+        consecutive_low_bids = 0
+        indices_to_drop = []
+
+        for index, row in sorted_df.iterrows():
+            if row["bid"] <= min_bid_threshold:
+                consecutive_low_bids += 1
+                if consecutive_low_bids >= 5:
+                    indices_to_drop.append(index)
+            else:
+                consecutive_low_bids = 0
+
+        sorted_filtered_df = sorted_df.drop(indices_to_drop)
+
+        return sorted_filtered_df
+
+    @staticmethod
+    def calculate_raw_implied_variance(df, Fi, Ki_ATM, Ti, r):
+        """
+        Calculate the raw implied variance for options.
+
+        :param df: DataFrame containing options data, expected to be sorted and filtered.
+        :param Fi: Implied forward price.
+        :param Ki_ATM: ATM strike level.
+        :param Ti: Time to maturity in years.
+        :param r: Annual risk-free interest rate.
+        :return: Raw implied variance.
+        """
+        # Ensure df is sorted by strike
+        df_sorted = df.sort_values(by="strike")
+
+        # Calculate delta K for each option, assuming equidistant strikes post-interpolation
+        df_sorted["delta_K"] = (
+            df_sorted["strike"].diff().fillna(method="bfill").astype(float)
+        )
+
+        # Calculate weights
+        df_sorted["wi"] = np.exp(r * Ti) * (
+            df_sorted["delta_K"] / df_sorted["strike"] ** 2
+        )
+
+        # Calculate the variance contribution for each option
+        df_sorted["variance_contribution"] = (
+            2 * df_sorted["wi"] * df_sorted["mid_price"]
+        )
+
+        # Sum up the variance contributions
+        sum_variance_contributions = df_sorted["variance_contribution"].sum()
+
+        # Calculate the raw implied variance
+        raw_implied_variance = (
+            sum_variance_contributions - ((Fi / Ki_ATM) - 1) ** 2
+        ) / Ti
+
+        return raw_implied_variance
 
     @staticmethod
     def atm_strike(df):
@@ -147,13 +221,17 @@ class Processing:
 
     @staticmethod
     def consolidate_quotes(df):
-        df = df.groupby("symbol").agg(
-            {
-                "bid": "mean",
-                "ask": "mean",
-                "mark_price": "mean",
-            }
-        ).reset_index()
+        df = (
+            df.groupby("symbol")
+            .agg(
+                {
+                    "bid": "mean",
+                    "ask": "mean",
+                    "mark_price": "mean",
+                }
+            )
+            .reset_index()
+        )
         return df
 
     @staticmethod

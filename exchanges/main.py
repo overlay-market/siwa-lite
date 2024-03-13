@@ -15,26 +15,24 @@ logger = logging.getLogger(__name__)
 
 def main():
     try:
-        deribit = DeribitManager(pairs_to_load=["BTC/USD:BTC"], market_types=["option"])
-        binance = BinanceManager(
-            pairs_to_load=["BTC/USD:BTC"], market_types=["option", "future"]
-        )
-        okx = OKXManager(pairs_to_load=["BTC/USD:BTC"], market_types=["option"])
-        global_orderbook_options = pd.DataFrame()
-        global_orderbook_futures = pd.DataFrame()
-
-        for manager in [binance, deribit]:
-            options, futures = manager.load_specific_pairs()
-            global_orderbook_options = pd.concat([global_orderbook_options, options]).reset_index(drop=True)
-            global_orderbook_futures = pd.concat([global_orderbook_futures, futures]).reset_index(drop=True)
-
-        consolidated_options = Processing().consolidate_quotes(global_orderbook_options)
-
-        process_quotes = Processing().process_quotes(consolidated_options)
-        calculate_forward_and_atm = Processing().calculate_forward_and_atm(process_quotes)
-        calculate_forward_and_atm.to_json("forward_and_atm.json", orient="records", indent=4)
-        process_quotes.to_json("quotes.json", orient="records", indent=4)
-
+        # deribit = DeribitManager(pairs_to_load=["BTC/USD:BTC"], market_types=["option"])
+        # binance = BinanceManager(
+        #     pairs_to_load=["BTC/USD:BTC"], market_types=["option", "future"]
+        # )
+        # okx = OKXManager(pairs_to_load=["BTC/USD:BTC"], market_types=["option"])
+        # global_orderbook_options = pd.DataFrame()
+        # global_orderbook_futures = pd.DataFrame()
+        #
+        # for manager in [binance, deribit]:
+        #     options, futures = manager.load_specific_pairs()
+        #     global_orderbook_options = pd.concat([global_orderbook_options, options]).reset_index(drop=True)
+        #     global_orderbook_futures = pd.concat([global_orderbook_futures, futures]).reset_index(drop=True)
+        #
+        # consolidated_options = Processing().consolidate_quotes(global_orderbook_options)
+        #
+        # process_quotes = Processing().process_quotes(consolidated_options)
+        # process_quotes.to_json("quotes.json", orient="records", indent=4)
+        process_quotes = pd.read_json("quotes.json")
     except Exception as e:
         logger.error(f"An unexpected error occurred in the main function: {e}")
 
