@@ -37,6 +37,8 @@ def main():
         # process_quotes.to_json("quotes.json", orient="records", indent=4)
         # process_quotes.to_csv("quotes.csv", index=False)
         process_quotes = pd.read_json("quotes.json")
+        futures = pd.read_json("futures.json")
+        print(futures.to_string())
         filter_near_next_term_options = Processing().filter_near_next_term_options(process_quotes)
         near_term_options, next_term_options = filter_near_next_term_options
         near_term_options.to_json("near_term_options.json", orient="records", indent=4)
@@ -50,6 +52,10 @@ def main():
         next_term_filtered_options = Processing().filter_and_sort_options(next_term_options, next_term_implied_forward_price)
         near_term_filtered_options.to_csv("near_term_filtered_options.csv", index=False)
         next_term_filtered_options.to_csv("next_term_filtered_options.csv", index=False)
+        find_missing_expiries_near_term = Processing().find_missing_expiries(near_term_filtered_options, futures)
+        interpolate_implied_interest_rates_near_term = Processing().interpolate_implied_interest_rates(near_term_filtered_options, find_missing_expiries_near_term)
+        interpolate_implied_interest_rates_near_term.to_csv("interpolate_implied_interest_rates_near_term.csv", index=False)
+        interpolate_implied_interest_rates_near_term.to_json("interpolate_implied_interest_rates_near_term.json", orient="records", indent=4)
 
 
 

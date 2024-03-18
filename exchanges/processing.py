@@ -3,6 +3,7 @@ from datetime import datetime
 
 import numpy as np
 import pandas as pd
+from scipy.interpolate import interp1d
 
 from exchanges.constants.utils import SPREAD_MIN, SPREAD_MULTIPLIER, RANGE_MULT
 
@@ -167,62 +168,31 @@ class Processing:
         return raw_implied_variance
 
     @staticmethod
-    def atm_strike(df):
-        df = df.copy()
-        df["KATM"] = df[df["strike"] < df["Fimp"]].groupby("expiry")["strike"].max()
-        return df
 
-    def process_global_orderbook(self, df):
-        df = self.normalize_type(df)
-        df = self.consolidate_quotes(df)
-        df = self.convert_datetimes_and_calculate_ytm(df)
-        df = self.calculate_mid_prices(df)
-        df = self.calculate_implied_forward_price(df)
-        df = self.find_atm_strike(df)
-        df_otm = self.filter_otm_options_and_set_prices(df)
-        return df
+    def find_missing_expiries(options_df, futures_df):
+        options_expiries = options_df['expiry'].unique()
+        futures_expiries = futures_df['expiry'].unique()
+        missing_expiries = sorted(list(set(options_expiries) - set(futures_expiries)))
+        return missing_expiries
 
     @staticmethod
-    def consolidate_quotes(df):
-        df = (
-            df.groupby("symbol")
-            .agg(
-                {
-                    "bid": "mean",
-                    "ask": "mean",
-                    "mark_price": "mean",
-                }
-            )
-            .reset_index()
-        )
-        return df
 
-    @staticmethod
-    def convert_datetimes_and_calculate_ytm(df):
-        # Convert datetime from milliseconds if needed and calculate YTM
-        df["expiry"] = pd.to_datetime(df["expiry"], unit="ms")
-        df["datetime"] = pd.to_datetime(df["datetime"], unit="ms")
-        df["YTM_calc"] = 30 / 365  # Fixed value based on the description
-        return df
+    def interpolate_implied_interest_rates(futures_df, missing_expiries):
+        futures_df['expiry_ordinal'] = pd.to_datetime(futures_df['expiry']).apply(lambda x: x.toordinal())
+        missing_expiries_ordinal = [pd.to_datetime(date).toordinal() for date in missing_expiries]
 
-    @staticmethod
-    def calculate_mid_prices(df):
-        df["mid_price"] = (df["ask"] + df["bid"]) / 2
-        return df
+        # Prepare interpolation function
+        interp_func = interp1d(futures_df['expiry_ordinal'], futures_df['implied_interest_rate'], kind='linear',
+                               fill_value='extrapolate')
 
-    @staticmethod
-    def find_atm_strike(df):
-        # Determine ATM strike for each expiry, this is also simplified
-        df["KATM"] = df.groupby("expiry")["Fimp"].transform(
-            lambda x: x[x < x.max()].max()
-        )
-        return df
+        # Interpolate rates for missing expiries
+        interpolated_rates = interp_func(missing_expiries_ordinal)
 
-    @staticmethod
-    def filter_otm_options_and_set_prices(df):
-        # Filter for OTM options and set prices, adjusting for your actual logic
-        df_otm = df[df["strike_price"].astype(float) > df["KATM"]]
-        df_otm["price"] = df_otm[
-            "mid_price"
-        ]  # Assuming this is correct; adjust if needed
-        return df_otm
+        # Create DataFrame for the interpolated rates
+        interpolated_rates_df = pd.DataFrame({
+            'expiry': missing_expiries,
+            'implied_interest_rate': interpolated_rates
+        })
+
+        return interpolated_rates_df
+
