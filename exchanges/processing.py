@@ -1,4 +1,5 @@
 import json
+from datetime import datetime
 
 import numpy as np
 import pandas as pd
@@ -41,16 +42,14 @@ class Processing:
         return interest_rate_term_structure
 
     @staticmethod
-    def near_and_next_term_options(df):
-        df = df.copy()
+    def filter_near_next_term_options(df):
+        df['expiry'] = df['symbol'].apply(lambda x: datetime.strptime(x.split('-')[1], '%y%m%d'))
+        index_maturity_days = 30
+        today = datetime.now()
+        near_term_options = df[(df['expiry'] - today).dt.days <= index_maturity_days]
+        next_term_options = df[(df['expiry'] - today).dt.days > index_maturity_days]
+        return near_term_options, next_term_options
 
-        df["datetime"] = pd.to_datetime(df["datetime"])
-        df["expiry"] = pd.to_datetime(df["expiry"])
-        df = df.sort_values(by=["expiry", "datetime"])
-        near_term = df[df["expiry"] <= df["datetime"].max()]
-        next_term = df[df["expiry"] > df["datetime"].max()]
-
-        return near_term, next_term
 
     @staticmethod
     def eliminate_invalid_quotes(df):
@@ -65,26 +64,23 @@ class Processing:
     @staticmethod
     def process_quotes(df: pd.DataFrame) -> pd.DataFrame:
         df = df.copy()
-        # Calculate spreads
         df["bid_spread"] = df["mark_price"] - df["bid"]
         df["ask_spread"] = df["ask"] - df["mark_price"]
 
-        # Set spreads to zero if negative
         df["bid_spread"] = df["bid_spread"].apply(lambda x: x if x > 0 else 0)
         df["ask_spread"] = df["ask_spread"].apply(lambda x: x if x > 0 else 0)
 
         # Calculate total spread
         df["spread"] = df["bid_spread"] + df["ask_spread"]
 
-        # Calculate MAS
-        df["MAS"] = df[["bid_spread", "ask_spread"]].min(axis=1) * SPREAD_MULTIPLIER
+
+        MAS = df[["bid_spread", "ask_spread"]].min(axis=1) * SPREAD_MULTIPLIER
 
         # Calculate GMS
         GMS = SPREAD_MIN * SPREAD_MULTIPLIER
 
-        df = df[(df["spread"] <= GMS) | (df["spread"] <= df["MAS"])]
+        df = df[(df["spread"] <= GMS) | (df["spread"] <= MAS)]
 
-        # Extract strike price and option type (Call/Put) from the symbol
         df["strike"] = df["symbol"].apply(lambda x: int(x.split("-")[2]))
         df["option_type"] = df["symbol"].apply(lambda x: x[-1])
 
@@ -93,75 +89,42 @@ class Processing:
 
     @staticmethod
     def calculate_implied_forward_price(df):
-        YTM = 30 / 365  # Approximation of 0.082192 years
-
-        df_c = df[df["option_type"] == "C"].set_index("strike")
-        df_p = df[df["option_type"] == "P"].set_index("strike")
-
-        df_joined = df_c.join(df_p, lsuffix="_C", rsuffix="_P")
-
-        df_joined["mid_price_diff"] = abs(
-            df_joined["mid_price_C"] - df_joined["mid_price_P"]
-        )
-        min_diff_row = df_joined.loc[df_joined["mid_price_diff"].idxmin()]
-
-        Fimp = min_diff_row.name + YTM * (
-            min_diff_row["mid_price_C"] - min_diff_row["mid_price_P"]
-        )
-
-        return Fimp, min_diff_row.name
+        calls = df[df['option_type'] == 'C']
+        puts = df[df['option_type'] == 'P']
+        combined = calls[['strike', 'mid_price']].merge(puts[['strike', 'mid_price']], on='strike',
+                                                        suffixes=('_call', '_put'))
+        combined['mid_price_diff'] = abs(combined['mid_price_call'] - combined['mid_price_put'])
+        min_diff_strike = combined.loc[combined['mid_price_diff'].idxmin()]
+        forward_price = df.loc[df['strike'] == min_diff_strike['strike'], 'mark_price'].iloc[0]
+        Fimp = min_diff_strike['strike'] + forward_price * (
+                    min_diff_strike['mid_price_call'] - min_diff_strike['mid_price_put'])
+        return Fimp
 
     @staticmethod
-    def select_otm_options(df, Fimp):
-        # Identify ATM strike
-        KATM = df[df["strike"] < Fimp]["strike"].max()
-
-        # Select OTM options: For calls, strike > KATM; For puts, strike < KATM
-        otm_calls = df[(df["strike"] > KATM) & (df["option_type"] == "C")]
-        otm_puts = df[(df["strike"] < KATM) & (df["option_type"] == "P")]
-
-        # Calculate average mid-price for KATM if applicable
-        if KATM in df["strike"].values:
-            avg_mid_price_KATM = df[df["strike"] == KATM]["mid_price"].mean()
-        else:
-            avg_mid_price_KATM = None
-
-        return KATM, otm_calls, otm_puts, avg_mid_price_KATM
-
-    @staticmethod
-    def filter_and_sort_options(df, Fimp, RANGE_MULT=2.5, min_bid_threshold=0.01):
-        """
-        Filters options based on dynamically calculated Kmin and Kmax from Fimp and RANGE_MULT.
-        Then sorts the remaining options by strike and eliminates options after observing
-        five consecutive bid prices <= min_bid_threshold.
-
-        :param df: DataFrame containing options data.
-        :param Fimp: Calculated implied forward price.
-        :param RANGE_MULT: Multiplier to set the range of strike prices.
-        :param min_bid_threshold: Minimum bid threshold, equal to tick size.
-        :return: Filtered and sorted DataFrame.
-        """
+    def filter_and_sort_options(df, Fimp):
+        KATM = df[df['strike'] < Fimp]['strike'].max()
+        RANGE_MULT = 2.5
         Kmin = Fimp / RANGE_MULT
         Kmax = Fimp * RANGE_MULT
-
-        filtered_df = df[(df["strike"] > Kmin) & (df["strike"] < Kmax)]
-
-        sorted_df = filtered_df.sort_values(by="strike")
-
-        consecutive_low_bids = 0
-        indices_to_drop = []
-
-        for index, row in sorted_df.iterrows():
-            if row["bid"] <= min_bid_threshold:
-                consecutive_low_bids += 1
-                if consecutive_low_bids >= 5:
-                    indices_to_drop.append(index)
+        calls_otm = df[(df['strike'] > KATM) & (df['option_type'] == 'C')]
+        puts_otm = df[(df['strike'] < KATM) & (df['option_type'] == 'P')]
+        otm_combined = pd.concat([calls_otm, puts_otm])
+        otm_filtered = otm_combined[(otm_combined['strike'] > Kmin) & (otm_combined['strike'] < Kmax)]
+        otm_sorted = otm_filtered.sort_values(by='strike')
+        tick_size = df[df['bid'] > 0]['bid'].min()
+        consecutive_threshold = 5
+        consecutive_count = 0
+        to_drop = []
+        for index, row in otm_sorted.iterrows():
+            if row['bid'] <= tick_size:
+                consecutive_count += 1
+                to_drop.append(index)
             else:
-                consecutive_low_bids = 0
-
-        sorted_filtered_df = sorted_df.drop(indices_to_drop)
-
-        return sorted_filtered_df
+                consecutive_count = 0
+            if consecutive_count >= consecutive_threshold:
+                break
+        otm_final = otm_sorted.drop(to_drop)
+        return otm_final
 
     @staticmethod
     def calculate_raw_implied_variance(df, Fi, Ki_ATM, Ti, r):
@@ -245,13 +208,6 @@ class Processing:
     @staticmethod
     def calculate_mid_prices(df):
         df["mid_price"] = (df["ask"] + df["bid"]) / 2
-        return df
-
-    @staticmethod
-    def calculate_implied_forward_price(df):
-        df["Fimp"] = (
-            df["strike_price"].astype(float) + df["mid_price"]
-        )  # Simplify and adjust as needed
         return df
 
     @staticmethod
