@@ -38,26 +38,42 @@ def main():
         # process_quotes.to_csv("quotes.csv", index=False)
         process_quotes = pd.read_json("quotes.json")
         futures = pd.read_json("futures.json")
-        print(futures.to_string())
-        filter_near_next_term_options = Processing().filter_near_next_term_options(process_quotes)
+        filter_near_next_term_options = Processing().filter_near_next_term_options(
+            process_quotes
+        )
         near_term_options, next_term_options = filter_near_next_term_options
         near_term_options.to_json("near_term_options.json", orient="records", indent=4)
         next_term_options.to_json("next_term_options.json", orient="records", indent=4)
-        # calculate_implied_forward_price = Processing().calculate_implied_forward_price(process_quotes)
-        # filtered_options = Processing().filter_and_sort_options(process_quotes, calculate_implied_forward_price)
-        # filtered_options.to_json("filtered_options.json", orient="records", indent=4)
-        near_term_implied_forward_price = Processing().calculate_implied_forward_price(near_term_options)
-        next_term_implied_forward_price = Processing().calculate_implied_forward_price(next_term_options)
-        near_term_filtered_options = Processing().filter_and_sort_options(near_term_options, near_term_implied_forward_price)
-        next_term_filtered_options = Processing().filter_and_sort_options(next_term_options, next_term_implied_forward_price)
-        near_term_filtered_options.to_csv("near_term_filtered_options.csv", index=False)
-        next_term_filtered_options.to_csv("next_term_filtered_options.csv", index=False)
-        find_missing_expiries_near_term = Processing().find_missing_expiries(near_term_filtered_options, futures)
-        interpolate_implied_interest_rates_near_term = Processing().interpolate_implied_interest_rates(near_term_filtered_options, find_missing_expiries_near_term)
-        interpolate_implied_interest_rates_near_term.to_csv("interpolate_implied_interest_rates_near_term.csv", index=False)
-        interpolate_implied_interest_rates_near_term.to_json("interpolate_implied_interest_rates_near_term.json", orient="records", indent=4)
+        near_term_implied_forward_price = Processing().calculate_implied_forward_price(
+            near_term_options
+        )
+        otm_final = Processing().filter_and_sort_options(
+            near_term_options, near_term_implied_forward_price
+        )
 
+        otm_final.to_csv("otm_final.csv", index=False)
 
+        find_missing_expiries_near_term = Processing().find_missing_expiries(
+            otm_final, futures
+        )
+        interpolate_implied_interest_rates_near_term = (
+            Processing().interpolate_implied_interest_rates(
+                futures, find_missing_expiries_near_term
+            )
+        )
+        calculate_wij = Processing().calculate_wij(
+            otm_final, interpolate_implied_interest_rates_near_term
+        )
+        calculate_wij.to_csv("calculate_wij.csv", index=False)
+
+        interpolate_implied_interest_rates_near_term.to_csv(
+            "interpolate_implied_interest_rates_near_term.csv", index=False
+        )
+        interpolate_implied_interest_rates_near_term.to_json(
+            "interpolate_implied_interest_rates_near_term.json",
+            orient="records",
+            indent=4,
+        )
 
     except Exception as e:
         logger.error(f"An unexpected error occurred in the main function: {e}")

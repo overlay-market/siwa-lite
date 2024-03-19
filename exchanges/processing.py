@@ -44,13 +44,14 @@ class Processing:
 
     @staticmethod
     def filter_near_next_term_options(df):
-        df['expiry'] = df['symbol'].apply(lambda x: datetime.strptime(x.split('-')[1], '%y%m%d'))
+        df["expiry"] = df["symbol"].apply(
+            lambda x: datetime.strptime(x.split("-")[1], "%y%m%d")
+        )
         index_maturity_days = 30
         today = datetime.now()
-        near_term_options = df[(df['expiry'] - today).dt.days <= index_maturity_days]
-        next_term_options = df[(df['expiry'] - today).dt.days > index_maturity_days]
+        near_term_options = df[(df["expiry"] - today).dt.days <= index_maturity_days]
+        next_term_options = df[(df["expiry"] - today).dt.days > index_maturity_days]
         return near_term_options, next_term_options
-
 
     @staticmethod
     def eliminate_invalid_quotes(df):
@@ -74,7 +75,6 @@ class Processing:
         # Calculate total spread
         df["spread"] = df["bid_spread"] + df["ask_spread"]
 
-
         MAS = df[["bid_spread", "ask_spread"]].min(axis=1) * SPREAD_MULTIPLIER
 
         # Calculate GMS
@@ -90,34 +90,42 @@ class Processing:
 
     @staticmethod
     def calculate_implied_forward_price(df):
-        calls = df[df['option_type'] == 'C']
-        puts = df[df['option_type'] == 'P']
-        combined = calls[['strike', 'mid_price']].merge(puts[['strike', 'mid_price']], on='strike',
-                                                        suffixes=('_call', '_put'))
-        combined['mid_price_diff'] = abs(combined['mid_price_call'] - combined['mid_price_put'])
-        min_diff_strike = combined.loc[combined['mid_price_diff'].idxmin()]
-        forward_price = df.loc[df['strike'] == min_diff_strike['strike'], 'mark_price'].iloc[0]
-        Fimp = min_diff_strike['strike'] + forward_price * (
-                    min_diff_strike['mid_price_call'] - min_diff_strike['mid_price_put'])
+        calls = df[df["option_type"] == "C"]
+        puts = df[df["option_type"] == "P"]
+        combined = calls[["strike", "mid_price"]].merge(
+            puts[["strike", "mid_price"]], on="strike", suffixes=("_call", "_put")
+        )
+        combined["mid_price_diff"] = abs(
+            combined["mid_price_call"] - combined["mid_price_put"]
+        )
+        min_diff_strike = combined.loc[combined["mid_price_diff"].idxmin()]
+        forward_price = df.loc[
+            df["strike"] == min_diff_strike["strike"], "mark_price"
+        ].iloc[0]
+        Fimp = min_diff_strike["strike"] + forward_price * (
+            min_diff_strike["mid_price_call"] - min_diff_strike["mid_price_put"]
+        )
         return Fimp
 
     @staticmethod
     def filter_and_sort_options(df, Fimp):
-        KATM = df[df['strike'] < Fimp]['strike'].max()
+        KATM = df[df["strike"] < Fimp]["strike"].max()
         RANGE_MULT = 2.5
         Kmin = Fimp / RANGE_MULT
         Kmax = Fimp * RANGE_MULT
-        calls_otm = df[(df['strike'] > KATM) & (df['option_type'] == 'C')]
-        puts_otm = df[(df['strike'] < KATM) & (df['option_type'] == 'P')]
+        calls_otm = df[(df["strike"] > KATM) & (df["option_type"] == "C")]
+        puts_otm = df[(df["strike"] < KATM) & (df["option_type"] == "P")]
         otm_combined = pd.concat([calls_otm, puts_otm])
-        otm_filtered = otm_combined[(otm_combined['strike'] > Kmin) & (otm_combined['strike'] < Kmax)]
-        otm_sorted = otm_filtered.sort_values(by='strike')
-        tick_size = df[df['bid'] > 0]['bid'].min()
+        otm_filtered = otm_combined[
+            (otm_combined["strike"] > Kmin) & (otm_combined["strike"] < Kmax)
+        ]
+        otm_sorted = otm_filtered.sort_values(by="strike")
+        tick_size = df[df["bid"] > 0]["bid"].min()
         consecutive_threshold = 5
         consecutive_count = 0
         to_drop = []
         for index, row in otm_sorted.iterrows():
-            if row['bid'] <= tick_size:
+            if row["bid"] <= tick_size:
                 consecutive_count += 1
                 to_drop.append(index)
             else:
@@ -125,74 +133,83 @@ class Processing:
             if consecutive_count >= consecutive_threshold:
                 break
         otm_final = otm_sorted.drop(to_drop)
+        otm_final["Fimp"] = Fimp
+        otm_final["KATM"] = KATM
+        # time to expiry in years
+        current_date = datetime.now()
+        otm_final["years_to_expiry"] = (
+            otm_final["expiry"] - current_date
+        ).dt.days / 365.25
+
         return otm_final
 
+    # w_{i,j} = e^{r_i T_i} * (ΔK_j) / (K_j)^2,
     @staticmethod
-    def calculate_raw_implied_variance(df, Fi, Ki_ATM, Ti, r):
-        """
-        Calculate the raw implied variance for options.
+    def calculate_wij(strike_prices_df, interest_rates_df):
+        interest_rates_df["expiry"] = pd.to_datetime(interest_rates_df["expiry"])
 
-        :param df: DataFrame containing options data, expected to be sorted and filtered.
-        :param Fi: Implied forward price.
-        :param Ki_ATM: ATM strike level.
-        :param Ti: Time to maturity in years.
-        :param r: Annual risk-free interest rate.
-        :return: Raw implied variance.
-        """
-        # Ensure df is sorted by strike
-        df_sorted = df.sort_values(by="strike")
+        strike_prices_df.sort_values(by=["expiry", "strike"], inplace=True)
 
-        # Calculate delta K for each option, assuming equidistant strikes post-interpolation
-        df_sorted["delta_K"] = (
-            df_sorted["strike"].diff().fillna(method="bfill").astype(float)
+        merged_df = strike_prices_df.merge(
+            interest_rates_df, on="expiry", how="left", suffixes=("_x", "_y")
         )
+        merged_df["K_prev"] = merged_df["strike"].shift(1)
+        merged_df["K_next"] = merged_df["strike"].shift(-1)
 
-        # Calculate weights
-        df_sorted["wi"] = np.exp(r * Ti) * (
-            df_sorted["delta_K"] / df_sorted["strike"] ** 2
-        )
+        merged_df["Delta_K"] = (merged_df["K_next"] - merged_df["K_prev"]) / 2
 
-        # Calculate the variance contribution for each option
-        df_sorted["variance_contribution"] = (
-            2 * df_sorted["wi"] * df_sorted["mid_price"]
-        )
+        merged_df["Delta_K"].fillna(method="bfill", inplace=True)
+        merged_df["Delta_K"].fillna(method="ffill", inplace=True)
 
-        # Sum up the variance contributions
-        sum_variance_contributions = df_sorted["variance_contribution"].sum()
+        merged_df["w_ij"] = (
+            np.exp(merged_df["implied_interest_rate"] * merged_df["years_to_expiry"])
+            * merged_df["Delta_K"]
+        ) / (merged_df["strike"] ** 2)
 
-        # Calculate the raw implied variance
-        raw_implied_variance = (
-            sum_variance_contributions - ((Fi / Ki_ATM) - 1) ** 2
-        ) / Ti
-
-        return raw_implied_variance
+        return merged_df[["expiry", "strike", "w_ij"]]
 
     @staticmethod
-
     def find_missing_expiries(options_df, futures_df):
-        options_expiries = options_df['expiry'].unique()
-        futures_expiries = futures_df['expiry'].unique()
+        options_expiries = options_df["expiry"].unique()
+        futures_expiries = futures_df["expiry"].unique()
         missing_expiries = sorted(list(set(options_expiries) - set(futures_expiries)))
         return missing_expiries
 
     @staticmethod
-
     def interpolate_implied_interest_rates(futures_df, missing_expiries):
-        futures_df['expiry_ordinal'] = pd.to_datetime(futures_df['expiry']).apply(lambda x: x.toordinal())
-        missing_expiries_ordinal = [pd.to_datetime(date).toordinal() for date in missing_expiries]
+        futures_df["expiry_ordinal"] = pd.to_datetime(futures_df["expiry"]).apply(
+            lambda x: x.toordinal()
+        )
+        missing_expiries_ordinal = [
+            pd.to_datetime(date).toordinal() for date in missing_expiries
+        ]
 
-        # Prepare interpolation function
-        interp_func = interp1d(futures_df['expiry_ordinal'], futures_df['implied_interest_rate'], kind='linear',
-                               fill_value='extrapolate')
+        interp_func = interp1d(
+            futures_df["expiry_ordinal"],
+            futures_df["implied_interest_rate"],
+            kind="linear",
+            fill_value="extrapolate",
+        )
 
-        # Interpolate rates for missing expiries
         interpolated_rates = interp_func(missing_expiries_ordinal)
 
-        # Create DataFrame for the interpolated rates
-        interpolated_rates_df = pd.DataFrame({
-            'expiry': missing_expiries,
-            'implied_interest_rate': interpolated_rates
-        })
+        interpolated_rates_df = pd.DataFrame(
+            {"expiry": missing_expiries, "implied_interest_rate": interpolated_rates}
+        )
 
         return interpolated_rates_df
 
+    @staticmethod
+    def calculate_delta_K(df):
+        df = df.sort_values(by="strike").reset_index(drop=True)
+        print(df)
+        delta_K = pd.Series(dtype=float)
+        delta_K[0] = df.loc[1, "strike"] - df.loc[0, "strike"]
+        delta_K[df.index[-1]] = (
+            df.loc[df.index[-1], "strike"] - df.loc[df.index[-1] - 1, "strike"]
+        )
+
+        for i in range(1, len(df) - 1):
+            delta_K[i] = (df.loc[i + 1, "strike"] - df.loc[i - 1, "strike"]) / 2
+
+        return delta_K
