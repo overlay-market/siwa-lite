@@ -143,7 +143,6 @@ class Processing:
 
         return otm_final
 
-    # w_{i,j} = e^{r_i T_i} * (ΔK_j) / (K_j)^2,
     @staticmethod
     def calculate_wij(strike_prices_df, interest_rates_df):
         interest_rates_df["expiry"] = pd.to_datetime(interest_rates_df["expiry"])
@@ -167,6 +166,22 @@ class Processing:
         ) / (merged_df["strike"] ** 2)
 
         return merged_df[["expiry", "strike", "w_ij"]]
+
+    @staticmethod
+    def calculate_sigma_it_squared(w_ij_df, option_prices_df):
+        option_prices_df["expiry"] = pd.to_datetime(option_prices_df["expiry"])
+        option_prices_df.sort_values(by=["expiry", "strike"], inplace=True)
+
+        merged_df = w_ij_df.merge(
+            option_prices_df, on=["expiry", "strike"], how="left", suffixes=("_x", "_y")
+        )
+
+        merged_df["sigma_it_squared"] = (1 / merged_df["years_to_expiry"]) * (
+            0.5 * (merged_df["w_ij"] * merged_df["mid_price"]).sum()
+            - (merged_df["Fimp"] / merged_df["KATM"] - 1) ** 2
+        )
+
+        return merged_df[["expiry", "strike", "sigma_it_squared"]]
 
     @staticmethod
     def find_missing_expiries(options_df, futures_df):
