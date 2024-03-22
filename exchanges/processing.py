@@ -171,6 +171,7 @@ class Processing:
     def calculate_sigma_it_squared(w_ij_df, option_prices_df):
         option_prices_df["expiry"] = pd.to_datetime(option_prices_df["expiry"])
         option_prices_df.sort_values(by=["expiry", "strike"], inplace=True)
+        option_prices_df.to_csv("option_prices.csv", index=False)
 
         merged_df = w_ij_df.merge(
             option_prices_df, on=["expiry", "strike"], how="left", suffixes=("_x", "_y")

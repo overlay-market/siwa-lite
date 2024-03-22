@@ -67,7 +67,7 @@ def main():
         calculate_sigma_it_squared = Processing().calculate_sigma_it_squared(
             calculate_wij, otm_final
         )
-        calculate_sigma_it_squared.to_csv("calculate_sigma_it_squared.csv", index=False)
+        calculate_sigma_it_squared.to_csv("sigma_near_squared.csv", index=False)
         calculate_wij.to_csv("calculate_wij.csv", index=False)
 
         interpolate_implied_interest_rates_near_term.to_csv(
