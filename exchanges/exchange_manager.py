@@ -8,7 +8,7 @@ import pandas as pd
 from pandas import DataFrame
 
 from exchanges.fetchers.binance_fetcher import BinanceFetcher
-from exchanges.handlers.merge import MergeMarketHandler
+from exchanges.handlers.future_and_options_handler import MergeMarketHandler
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)

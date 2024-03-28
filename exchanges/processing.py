@@ -146,44 +146,40 @@ class Processing:
     @staticmethod
     def calculate_wij(strike_prices_df, interest_rates_df):
         interest_rates_df["expiry"] = pd.to_datetime(interest_rates_df["expiry"])
+        strike_prices_df["expiry"] = pd.to_datetime(strike_prices_df["expiry"])
 
         strike_prices_df.sort_values(by=["expiry", "strike"], inplace=True)
 
         merged_df = strike_prices_df.merge(
             interest_rates_df, on="expiry", how="left", suffixes=("_x", "_y")
         )
+
         merged_df["K_prev"] = merged_df["strike"].shift(1)
         merged_df["K_next"] = merged_df["strike"].shift(-1)
 
         merged_df["Delta_K"] = (merged_df["K_next"] - merged_df["K_prev"]) / 2
-
         merged_df["Delta_K"].fillna(method="bfill", inplace=True)
         merged_df["Delta_K"].fillna(method="ffill", inplace=True)
+
 
         merged_df["w_ij"] = (
             np.exp(merged_df["implied_interest_rate"] * merged_df["years_to_expiry"])
             * merged_df["Delta_K"]
         ) / (merged_df["strike"] ** 2)
-
-        return merged_df[["expiry", "strike", "w_ij"]]
+        return merged_df
 
     @staticmethod
-    def calculate_sigma_it_squared(w_ij_df, option_prices_df):
-        option_prices_df["expiry"] = pd.to_datetime(option_prices_df["expiry"])
-        option_prices_df.sort_values(by=["expiry", "strike"], inplace=True)
-        option_prices_df.to_csv("option_prices.csv", index=False)
+    def calculate_sigma_it_squared_for_all(w_ij_df):
+        T_i = w_ij_df['years_to_expiry'].mean()
+        F_i = w_ij_df['Fimp'].mean()
+        K_i_ATM = w_ij_df['KATM'].mean()
 
-        merged_df = w_ij_df.merge(
-            option_prices_df, on=["expiry", "strike"], how="left", suffixes=("_x", "_y")
+        sigma_squared = (1 / T_i) * (
+                np.sum(0.5 * w_ij_df['w_ij'] * w_ij_df['mid_price']) -
+                ((F_i / K_i_ATM) - 1) ** 2 * len(w_ij_df)
         )
 
-        merged_df["sigma_it_squared"] = (1 / merged_df["years_to_expiry"]) * (
-            0.5 * (merged_df["w_ij"] * merged_df["mid_price"]).sum()
-            - (merged_df["Fimp"] / merged_df["KATM"] - 1) ** 2
-        )
-
-        return merged_df[["expiry", "strike", "sigma_it_squared"]]
-
+        return sigma_squared
     @staticmethod
     def find_missing_expiries(options_df, futures_df):
         options_expiries = options_df["expiry"].unique()
